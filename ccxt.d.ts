@@ -300,6 +300,7 @@ declare module 'ccxt' {
         orderbooks: object;
         orders: object;
         trades: object;
+        positions: object;
         userAgent: { 'User-Agent': string } | false;
         limits: { amount: MinMax, price: MinMax, cost: MinMax };
         hasCancelAllOrders: boolean;

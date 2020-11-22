@@ -222,6 +222,7 @@ class Exchange(object):
     orders = None
     myTrades = None
     trades = None
+    positions = None
     transactions = None
     ohlcvs = None
     tickers = None
@@ -340,6 +341,7 @@ class Exchange(object):
         self.orderbooks = dict() if self.orderbooks is None else self.orderbooks
         self.tickers = dict() if self.tickers is None else self.tickers
         self.trades = dict() if self.trades is None else self.trades
+        self.positions = dict() if self.positions is None else self.positions
         self.transactions = dict() if self.transactions is None else self.transactions
         self.ohlcvs = dict() if self.ohlcvs is None else self.ohlcvs
         self.currencies = dict() if self.currencies is None else self.currencies
