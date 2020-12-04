@@ -375,23 +375,23 @@ class kucoin extends Exchange {
         $response = $this->publicGetCurrencies ($params);
         //
         //     {
-        //       "currency" => "OMG",
-        //       "$name" => "OMG",
-        //       "fullName" => "OmiseGO",
-        //       "$precision" => 8,
-        //       "confirms" => 12,
-        //       "withdrawalMinSize" => "4",
-        //       "withdrawalMinFee" => "1.25",
-        //       "$isWithdrawEnabled" => false,
-        //       "$isDepositEnabled" => false,
-        //       "isMarginEnabled" => false,
-        //       "isDebitEnabled" => false
+        //         "currency" => "OMG",
+        //         "$name" => "OMG",
+        //         "fullName" => "OmiseGO",
+        //         "$precision" => 8,
+        //         "confirms" => 12,
+        //         "withdrawalMinSize" => "4",
+        //         "withdrawalMinFee" => "1.25",
+        //         "$isWithdrawEnabled" => false,
+        //         "$isDepositEnabled" => false,
+        //         "isMarginEnabled" => false,
+        //         "isDebitEnabled" => false
         //     }
         //
-        $responseData = $response['data'];
+        $data = $this->safe_value($response, 'data', array());
         $result = array();
-        for ($i = 0; $i < count($responseData); $i++) {
-            $entry = $responseData[$i];
+        for ($i = 0; $i < count($data); $i++) {
+            $entry = $data[$i];
             $id = $this->safe_string($entry, 'currency');
             $name = $this->safe_string($entry, 'fullName');
             $code = $this->safe_currency_code($id);
@@ -968,7 +968,7 @@ class kucoin extends Exchange {
         //         "stp" => "",             // self trade prevention,include CN,CO,DC,CB
         //         "stop" => "",            // stop $type
         //         "stopTriggered" => false,  // stop $order is triggered
-        //         "stopPrice" => "0",      // stop $price
+        //         "$stopPrice" => "0",      // stop $price
         //         "$timeInForce" => "GTC",  // time InForce,include GTC,GTT,IOC,FOK
         //         "postOnly" => false,     // postOnly
         //         "hidden" => false,       // hidden $order
@@ -1019,6 +1019,7 @@ class kucoin extends Exchange {
         }
         $clientOrderId = $this->safe_string($order, 'clientOid');
         $timeInForce = $this->safe_string($order, 'timeInForce');
+        $stopPrice = $this->safe_float($order, 'stopPrice');
         return array(
             'id' => $orderId,
             'clientOrderId' => $clientOrderId,
@@ -1028,6 +1029,7 @@ class kucoin extends Exchange {
             'side' => $side,
             'amount' => $amount,
             'price' => $price,
+            'stopPrice' => $stopPrice,
             'cost' => $cost,
             'filled' => $filled,
             'remaining' => $remaining,

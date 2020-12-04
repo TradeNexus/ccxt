@@ -213,7 +213,7 @@ module.exports = class bittrex extends Exchange {
                 // 'createOrderMethod': 'create_order_v1',
             },
             'commonCurrencies': {
-                'BITS': 'SWIFT',
+                'REPV2': 'REP',
             },
         });
     }
@@ -1056,6 +1056,7 @@ module.exports = class bittrex extends Exchange {
             'timeInForce': timeInForce,
             'side': direction,
             'price': limit,
+            'stopPrice': undefined,
             'cost': proceeds,
             'average': average,
             'amount': quantity,
