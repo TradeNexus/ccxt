@@ -821,6 +821,9 @@ module.exports = class phemex extends Exchange {
     }
 
     fromEn (en, scale, precision, precisionMode = undefined) {
+        if (en === undefined) {
+            return en;
+        }
         precisionMode = (precisionMode === undefined) ? this.precisionMode : precisionMode;
         return parseFloat (this.decimalToPrecision (en * Math.pow (10, -scale), ROUND, precision, precisionMode));
     }
@@ -864,13 +867,19 @@ module.exports = class phemex extends Exchange {
         //         48759063370, // quote volume
         //     ]
         //
+        let baseVolume = undefined;
+        if ((market !== undefined) && market['spot']) {
+            baseVolume = this.fromEv (this.safeFloat (ohlcv, 7), market);
+        } else {
+            baseVolume = this.safeInteger (ohlcv, 7);
+        }
         return [
             this.safeTimestamp (ohlcv, 0),
             this.fromEp (this.safeFloat (ohlcv, 3), market),
             this.fromEp (this.safeFloat (ohlcv, 4), market),
             this.fromEp (this.safeFloat (ohlcv, 5), market),
             this.fromEp (this.safeFloat (ohlcv, 6), market),
-            this.fromEv (this.safeFloat (ohlcv, 7), market),
+            baseVolume,
         ];
     }
 
@@ -1639,6 +1648,7 @@ module.exports = class phemex extends Exchange {
         }
         const timeInForce = this.parseTimeInForce (this.safeString (order, 'timeInForce'));
         const stopPrice = this.fromEp (this.safeFloat (order, 'stopPxEp', market));
+        const postOnly = (timeInForce === 'PO');
         return {
             'info': order,
             'id': id,
@@ -1649,6 +1659,7 @@ module.exports = class phemex extends Exchange {
             'symbol': symbol,
             'type': type,
             'timeInForce': timeInForce,
+            'postOnly': postOnly,
             'side': side,
             'price': price,
             'stopPrice': stopPrice,
@@ -1721,6 +1732,7 @@ module.exports = class phemex extends Exchange {
         }
         const timeInForce = this.parseTimeInForce (this.safeString (order, 'timeInForce'));
         const stopPrice = this.safeFloat (order, 'stopPx');
+        const postOnly = (timeInForce === 'PO');
         return {
             'info': order,
             'id': id,
@@ -1731,6 +1743,7 @@ module.exports = class phemex extends Exchange {
             'symbol': symbol,
             'type': type,
             'timeInForce': timeInForce,
+            'postOnly': postOnly,
             'side': side,
             'price': price,
             'stopPrice': stopPrice,
@@ -1786,8 +1799,10 @@ module.exports = class phemex extends Exchange {
         };
         if (market['spot']) {
             let qtyType = this.safeValue (params, 'qtyType', 'ByBase');
-            if (price !== undefined) {
-                qtyType = 'ByQuote';
+            if ((type === 'Market') || (type === 'Stop') || (type === 'MarketIfTouched')) {
+                if (price !== undefined) {
+                    qtyType = 'ByQuote';
+                }
             }
             request['qtyType'] = qtyType;
             if (qtyType === 'ByQuote') {
@@ -2317,7 +2332,7 @@ module.exports = class phemex extends Exchange {
         const currencyId = this.safeString (transaction, 'currency');
         currency = this.safeCurrency (currencyId, currency);
         const code = currency['code'];
-        const timestamp = this.safeInteger (transaction, 'createdAt');
+        const timestamp = this.safeInteger2 (transaction, 'createdAt', 'submitedAt');
         let type = this.safeStringLower (transaction, 'type');
         const feeCost = this.fromEn (this.safeFloat (transaction, 'feeEv'), currency['valueScale'], currency['precision']);
         let fee = undefined;

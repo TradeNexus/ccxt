@@ -793,7 +793,10 @@ class bitpanda extends Exchange {
         //
         $feeInfo = $this->safe_value($trade, 'fee', array());
         $trade = $this->safe_value($trade, 'trade', $trade);
-        $timestamp = $this->parse8601($this->safe_string($trade, 'time'));
+        $timestamp = $this->safe_integer($trade, 'trade_timestamp');
+        if ($timestamp === null) {
+            $timestamp = $this->parse8601($this->safe_string($trade, 'time'));
+        }
         $side = $this->safe_string_lower_2($trade, 'side', 'taker_side');
         $price = $this->safe_float($trade, 'price');
         $amount = $this->safe_float($trade, 'amount');
@@ -1328,6 +1331,7 @@ class bitpanda extends Exchange {
         }
         $timeInForce = $this->parse_time_in_force($this->safe_string($order, 'time_in_force'));
         $stopPrice = $this->safe_float($order, 'trigger_price');
+        $postOnly = $this->safe_value($order, 'is_post_only');
         $result = array(
             'id' => $id,
             'clientOrderId' => $clientOrderId,
@@ -1338,6 +1342,7 @@ class bitpanda extends Exchange {
             'symbol' => $symbol,
             'type' => $type,
             'timeInForce' => $timeInForce,
+            'postOnly' => $postOnly,
             'side' => $side,
             'price' => $price,
             'stopPrice' => $stopPrice,

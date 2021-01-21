@@ -776,8 +776,8 @@ class bitstamp extends Exchange {
         return array(
             'info' => $balance,
             'symbol' => $symbol,
-            'maker' => $balance->fee,
-            'taker' => $balance->fee,
+            'maker' => $balance['fee'],
+            'taker' => $balance['fee'],
         );
     }
 
@@ -1267,6 +1267,7 @@ class bitstamp extends Exchange {
             'symbol' => $symbol,
             'type' => null,
             'timeInForce' => null,
+            'postOnly' => null,
             'side' => $side,
             'price' => $price,
             'stopPrice' => null,

@@ -771,8 +771,8 @@ module.exports = class bitstamp extends Exchange {
         return {
             'info': balance,
             'symbol': symbol,
-            'maker': balance.fee,
-            'taker': balance.fee,
+            'maker': balance['fee'],
+            'taker': balance['fee'],
         };
     }
 
@@ -1262,6 +1262,7 @@ module.exports = class bitstamp extends Exchange {
             'symbol': symbol,
             'type': undefined,
             'timeInForce': undefined,
+            'postOnly': undefined,
             'side': side,
             'price': price,
             'stopPrice': undefined,

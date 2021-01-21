@@ -790,7 +790,10 @@ module.exports = class bitpanda extends Exchange {
         //
         const feeInfo = this.safeValue (trade, 'fee', {});
         trade = this.safeValue (trade, 'trade', trade);
-        const timestamp = this.parse8601 (this.safeString (trade, 'time'));
+        let timestamp = this.safeInteger (trade, 'trade_timestamp');
+        if (timestamp === undefined) {
+            timestamp = this.parse8601 (this.safeString (trade, 'time'));
+        }
         const side = this.safeStringLower2 (trade, 'side', 'taker_side');
         const price = this.safeFloat (trade, 'price');
         const amount = this.safeFloat (trade, 'amount');
@@ -1325,6 +1328,7 @@ module.exports = class bitpanda extends Exchange {
         }
         const timeInForce = this.parseTimeInForce (this.safeString (order, 'time_in_force'));
         const stopPrice = this.safeFloat (order, 'trigger_price');
+        const postOnly = this.safeValue (order, 'is_post_only');
         const result = {
             'id': id,
             'clientOrderId': clientOrderId,
@@ -1335,6 +1339,7 @@ module.exports = class bitpanda extends Exchange {
             'symbol': symbol,
             'type': type,
             'timeInForce': timeInForce,
+            'postOnly': postOnly,
             'side': side,
             'price': price,
             'stopPrice': stopPrice,

@@ -990,7 +990,7 @@ class okex(Exchange):
             currency = response[i]
             id = self.safe_string(currency, 'currency')
             code = self.safe_currency_code(id)
-            precision = 8  # default precision, todo: fix "magic constants"
+            precision = 0.00000001  # default precision, todo: fix "magic constants"
             name = self.safe_string(currency, 'name')
             canDeposit = self.safe_integer(currency, 'can_deposit')
             canWithdraw = self.safe_integer(currency, 'can_withdraw')
@@ -2097,6 +2097,7 @@ class okex(Exchange):
             'symbol': symbol,
             'type': type,
             'timeInForce': None,
+            'postOnly': None,
             'side': side,
             'price': price,
             'stopPrice': stopPrice,
@@ -2499,6 +2500,7 @@ class okex(Exchange):
         #         "currency": "XMR",
         #         "from": "",
         #         "to": "48PjH3ksv1fiXniKvKvyH5UtFs5WhfS2Vf7U3TwzdRJtCc7HJWvCQe56dRahyhQyTAViXZ8Nzk4gQg6o4BJBMUoxNy8y8g7",
+        #         "tag": "1234567",
         #         "deposit_id": 11571659, <-- we can use self
         #         "timestamp": "2019-10-01T14:54:19.000Z",
         #         "status": "2"
@@ -2510,6 +2512,7 @@ class okex(Exchange):
         withdrawalId = self.safe_string(transaction, 'withdrawal_id')
         addressFrom = self.safe_string(transaction, 'from')
         addressTo = self.safe_string(transaction, 'to')
+        tagTo = self.safe_string(transaction, 'tag')
         if withdrawalId is not None:
             type = 'withdrawal'
             id = withdrawalId
@@ -2546,8 +2549,8 @@ class okex(Exchange):
             'addressTo': addressTo,
             'address': address,
             'tagFrom': None,
-            'tagTo': None,
-            'tag': None,
+            'tagTo': tagTo,
+            'tag': tagTo,
             'status': status,
             'type': type,
             'updated': None,

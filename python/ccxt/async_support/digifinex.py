@@ -965,6 +965,7 @@ class digifinex(Exchange):
             'symbol': symbol,
             'type': type,
             'timeInForce': None,
+            'postOnly': None,
             'side': side,
             'price': price,
             'stopPrice': None,
@@ -1233,7 +1234,7 @@ class digifinex(Exchange):
         address = self.safe_string(depositAddress, 'address')
         tag = self.safe_string(depositAddress, 'addressTag')
         currencyId = self.safe_string_upper(depositAddress, 'currency')
-        code = self.safeCurrencCode(currencyId)
+        code = self.safe_currency_code(currencyId)
         return {
             'info': depositAddress,
             'code': code,

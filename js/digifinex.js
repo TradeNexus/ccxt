@@ -994,6 +994,7 @@ module.exports = class digifinex extends Exchange {
             'symbol': symbol,
             'type': type,
             'timeInForce': undefined,
+            'postOnly': undefined,
             'side': side,
             'price': price,
             'stopPrice': undefined,
@@ -1284,7 +1285,7 @@ module.exports = class digifinex extends Exchange {
         const address = this.safeString (depositAddress, 'address');
         const tag = this.safeString (depositAddress, 'addressTag');
         const currencyId = this.safeStringUpper (depositAddress, 'currency');
-        const code = this.safeCurrencCode (currencyId);
+        const code = this.safeCurrencyCode (currencyId);
         return {
             'info': depositAddress,
             'code': code,

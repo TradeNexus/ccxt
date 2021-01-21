@@ -186,6 +186,7 @@ module.exports = class liquid extends Exchange {
                 'must_be_positive': InvalidOrder,
                 'less_than_order_size': InvalidOrder,
                 'price_too_high': InvalidOrder,
+                'price_too_small': InvalidOrder, // {"errors":{"order":["price_too_small"]}}
             },
             'commonCurrencies': {
                 'WIN': 'WCOIN',
@@ -864,6 +865,7 @@ module.exports = class liquid extends Exchange {
             'lastTradeTimestamp': lastTradeTimestamp,
             'type': type,
             'timeInForce': undefined,
+            'postOnly': undefined,
             'status': status,
             'symbol': symbol,
             'side': side,

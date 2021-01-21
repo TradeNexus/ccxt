@@ -56,16 +56,21 @@ declare module 'ccxt' {
         symbol: string;
         base: string;
         quote: string;
-        baseId: string,
-        quoteId: string,
+        baseId: string;
+        quoteId: string;
+        type?: string;
+        spot?: boolean;
+        margin?: boolean;
+        swap?: boolean;
+        future?: boolean;
         active: boolean;
         precision: { base: number, quote: number, amount: number, price: number };
         limits: { amount: MinMax, price: MinMax, cost?: MinMax };
-        tierBased: boolean,
-        percentage: boolean,
-        taker: number,
-        maker: number,
-        info: any,
+        tierBased: boolean;
+        percentage: boolean;
+        taker: number;
+        maker: number;
+        info: any;
     }
 
     export interface Order {
@@ -459,6 +464,7 @@ declare module 'ccxt' {
     export class bw extends Exchange {}
     export class bybit extends Exchange {}
     export class bytetrade extends Exchange {}
+    export class cdax extends huobipro {}
     export class cex extends Exchange {}
     export class chilebit extends foxbit {}
     export class coinbase extends Exchange {}
@@ -476,6 +482,7 @@ declare module 'ccxt' {
     export class coinspot extends Exchange {}
     export class crex24 extends Exchange {}
     export class currencycom extends Exchange {}
+    export class delta extends Exchange {}
     export class deribit extends Exchange {}
     export class digifinex extends Exchange {}
     export class dsx extends Exchange {}
@@ -489,12 +496,12 @@ declare module 'ccxt' {
     export class ftx extends Exchange {}
     export class gateio extends Exchange {}
     export class gemini extends Exchange {}
+    export class gopax extends Exchange {}
     export class hbtc extends Exchange {}
     export class hitbtc extends Exchange {}
     export class hollaex extends Exchange {}
     export class huobijp extends huobipro {}
     export class huobipro extends Exchange {}
-    export class huobiru extends huobipro {}
     export class ice3x extends Exchange {}
     export class idex extends Exchange {}
     export class independentreserve extends Exchange {}
@@ -507,7 +514,6 @@ declare module 'ccxt' {
     export class latoken extends Exchange {}
     export class lbank extends Exchange {}
     export class liquid extends Exchange {}
-    export class livecoin extends Exchange {}
     export class luno extends Exchange {}
     export class lykke extends Exchange {}
     export class mercado extends Exchange {}

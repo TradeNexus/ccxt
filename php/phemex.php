@@ -825,6 +825,9 @@ class phemex extends Exchange {
     }
 
     public function from_en($en, $scale, $precision, $precisionMode = null) {
+        if ($en === null) {
+            return $en;
+        }
         $precisionMode = ($precisionMode === null) ? $this->precisionMode : $precisionMode;
         return floatval($this->decimal_to_precision($en * pow(10, -$scale), ROUND, $precision, $precisionMode));
     }
@@ -868,13 +871,19 @@ class phemex extends Exchange {
         //         48759063370, // quote volume
         //     )
         //
+        $baseVolume = null;
+        if (($market !== null) && $market['spot']) {
+            $baseVolume = $this->from_ev($this->safe_float($ohlcv, 7), $market);
+        } else {
+            $baseVolume = $this->safe_integer($ohlcv, 7);
+        }
         return array(
             $this->safe_timestamp($ohlcv, 0),
             $this->from_ep($this->safe_float($ohlcv, 3), $market),
             $this->from_ep($this->safe_float($ohlcv, 4), $market),
             $this->from_ep($this->safe_float($ohlcv, 5), $market),
             $this->from_ep($this->safe_float($ohlcv, 6), $market),
-            $this->from_ev($this->safe_float($ohlcv, 7), $market),
+            $baseVolume,
         );
     }
 
@@ -1643,6 +1652,7 @@ class phemex extends Exchange {
         }
         $timeInForce = $this->parse_time_in_force($this->safe_string($order, 'timeInForce'));
         $stopPrice = $this->from_ep($this->safe_float($order, 'stopPxEp', $market));
+        $postOnly = ($timeInForce === 'PO');
         return array(
             'info' => $order,
             'id' => $id,
@@ -1653,6 +1663,7 @@ class phemex extends Exchange {
             'symbol' => $symbol,
             'type' => $type,
             'timeInForce' => $timeInForce,
+            'postOnly' => $postOnly,
             'side' => $side,
             'price' => $price,
             'stopPrice' => $stopPrice,
@@ -1725,6 +1736,7 @@ class phemex extends Exchange {
         }
         $timeInForce = $this->parse_time_in_force($this->safe_string($order, 'timeInForce'));
         $stopPrice = $this->safe_float($order, 'stopPx');
+        $postOnly = ($timeInForce === 'PO');
         return array(
             'info' => $order,
             'id' => $id,
@@ -1735,6 +1747,7 @@ class phemex extends Exchange {
             'symbol' => $symbol,
             'type' => $type,
             'timeInForce' => $timeInForce,
+            'postOnly' => $postOnly,
             'side' => $side,
             'price' => $price,
             'stopPrice' => $stopPrice,
@@ -1790,8 +1803,10 @@ class phemex extends Exchange {
         );
         if ($market['spot']) {
             $qtyType = $this->safe_value($params, 'qtyType', 'ByBase');
-            if ($price !== null) {
-                $qtyType = 'ByQuote';
+            if (($type === 'Market') || ($type === 'Stop') || ($type === 'MarketIfTouched')) {
+                if ($price !== null) {
+                    $qtyType = 'ByQuote';
+                }
             }
             $request['qtyType'] = $qtyType;
             if ($qtyType === 'ByQuote') {
@@ -2321,7 +2336,7 @@ class phemex extends Exchange {
         $currencyId = $this->safe_string($transaction, 'currency');
         $currency = $this->safe_currency($currencyId, $currency);
         $code = $currency['code'];
-        $timestamp = $this->safe_integer($transaction, 'createdAt');
+        $timestamp = $this->safe_integer_2($transaction, 'createdAt', 'submitedAt');
         $type = $this->safe_string_lower($transaction, 'type');
         $feeCost = $this->from_en($this->safe_float($transaction, 'feeEv'), $currency['valueScale'], $currency['precision']);
         $fee = null;

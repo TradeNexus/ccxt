@@ -225,6 +225,7 @@ class bitforex extends Exchange {
             ),
             'commonCurrencies' => array(
                 'CREDIT' => 'TerraCredit',
+                'HBC' => 'Hybrid Bank Cash',
                 'IQ' => 'IQ.Cash',
                 'UOS' => 'UOS Network',
             ),
@@ -502,6 +503,7 @@ class bitforex extends Exchange {
             'symbol' => $symbol,
             'type' => $type,
             'timeInForce' => null,
+            'postOnly' => null,
             'side' => $side,
             'price' => $price,
             'stopPrice' => null,

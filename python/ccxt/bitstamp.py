@@ -737,8 +737,8 @@ class bitstamp(Exchange):
         return {
             'info': balance,
             'symbol': symbol,
-            'maker': balance.fee,
-            'taker': balance.fee,
+            'maker': balance['fee'],
+            'taker': balance['fee'],
         }
 
     def prase_trading_fees(self, balance):
@@ -1178,6 +1178,7 @@ class bitstamp(Exchange):
             'symbol': symbol,
             'type': None,
             'timeInForce': None,
+            'postOnly': None,
             'side': side,
             'price': price,
             'stopPrice': None,

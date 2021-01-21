@@ -223,6 +223,7 @@ module.exports = class bitforex extends Exchange {
             },
             'commonCurrencies': {
                 'CREDIT': 'TerraCredit',
+                'HBC': 'Hybrid Bank Cash',
                 'IQ': 'IQ.Cash',
                 'UOS': 'UOS Network',
             },
@@ -500,6 +501,7 @@ module.exports = class bitforex extends Exchange {
             'symbol': symbol,
             'type': type,
             'timeInForce': undefined,
+            'postOnly': undefined,
             'side': side,
             'price': price,
             'stopPrice': undefined,

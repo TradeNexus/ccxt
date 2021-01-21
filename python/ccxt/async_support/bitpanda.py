@@ -776,7 +776,9 @@ class bitpanda(Exchange):
         #
         feeInfo = self.safe_value(trade, 'fee', {})
         trade = self.safe_value(trade, 'trade', trade)
-        timestamp = self.parse8601(self.safe_string(trade, 'time'))
+        timestamp = self.safe_integer(trade, 'trade_timestamp')
+        if timestamp is None:
+            timestamp = self.parse8601(self.safe_string(trade, 'time'))
         side = self.safe_string_lower_2(trade, 'side', 'taker_side')
         price = self.safe_float(trade, 'price')
         amount = self.safe_float(trade, 'amount')
@@ -1273,6 +1275,7 @@ class bitpanda(Exchange):
                 cost = average * filled
         timeInForce = self.parse_time_in_force(self.safe_string(order, 'time_in_force'))
         stopPrice = self.safe_float(order, 'trigger_price')
+        postOnly = self.safe_value(order, 'is_post_only')
         result = {
             'id': id,
             'clientOrderId': clientOrderId,
@@ -1283,6 +1286,7 @@ class bitpanda(Exchange):
             'symbol': symbol,
             'type': type,
             'timeInForce': timeInForce,
+            'postOnly': postOnly,
             'side': side,
             'price': price,
             'stopPrice': stopPrice,

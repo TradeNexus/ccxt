@@ -810,6 +810,8 @@ class phemex(Exchange):
         return self.to_en(price, market['priceScale'], 0)
 
     def from_en(self, en, scale, precision, precisionMode=None):
+        if en is None:
+            return en
         precisionMode = self.precisionMode if (precisionMode is None) else precisionMode
         return float(self.decimal_to_precision(en * math.pow(10, -scale), ROUND, precision, precisionMode))
 
@@ -845,13 +847,18 @@ class phemex(Exchange):
         #         48759063370,  # quote volume
         #     ]
         #
+        baseVolume = None
+        if (market is not None) and market['spot']:
+            baseVolume = self.from_ev(self.safe_float(ohlcv, 7), market)
+        else:
+            baseVolume = self.safe_integer(ohlcv, 7)
         return [
             self.safe_timestamp(ohlcv, 0),
             self.from_ep(self.safe_float(ohlcv, 3), market),
             self.from_ep(self.safe_float(ohlcv, 4), market),
             self.from_ep(self.safe_float(ohlcv, 5), market),
             self.from_ep(self.safe_float(ohlcv, 6), market),
-            self.from_ev(self.safe_float(ohlcv, 7), market),
+            baseVolume,
         ]
 
     async def fetch_ohlcv(self, symbol, timeframe='1m', since=None, limit=None, params={}):
@@ -1584,6 +1591,7 @@ class phemex(Exchange):
                 filled = min(0, amount - remaining)
         timeInForce = self.parse_time_in_force(self.safe_string(order, 'timeInForce'))
         stopPrice = self.from_ep(self.safe_float(order, 'stopPxEp', market))
+        postOnly = (timeInForce == 'PO')
         return {
             'info': order,
             'id': id,
@@ -1594,6 +1602,7 @@ class phemex(Exchange):
             'symbol': symbol,
             'type': type,
             'timeInForce': timeInForce,
+            'postOnly': postOnly,
             'side': side,
             'price': price,
             'stopPrice': stopPrice,
@@ -1663,6 +1672,7 @@ class phemex(Exchange):
             lastTradeTimestamp = None
         timeInForce = self.parse_time_in_force(self.safe_string(order, 'timeInForce'))
         stopPrice = self.safe_float(order, 'stopPx')
+        postOnly = (timeInForce == 'PO')
         return {
             'info': order,
             'id': id,
@@ -1673,6 +1683,7 @@ class phemex(Exchange):
             'symbol': symbol,
             'type': type,
             'timeInForce': timeInForce,
+            'postOnly': postOnly,
             'side': side,
             'price': price,
             'stopPrice': stopPrice,
@@ -1725,8 +1736,9 @@ class phemex(Exchange):
         }
         if market['spot']:
             qtyType = self.safe_value(params, 'qtyType', 'ByBase')
-            if price is not None:
-                qtyType = 'ByQuote'
+            if (type == 'Market') or (type == 'Stop') or (type == 'MarketIfTouched'):
+                if price is not None:
+                    qtyType = 'ByQuote'
             request['qtyType'] = qtyType
             if qtyType == 'ByQuote':
                 cost = self.safe_float(params, 'cost')
@@ -2213,7 +2225,7 @@ class phemex(Exchange):
         currencyId = self.safe_string(transaction, 'currency')
         currency = self.safe_currency(currencyId, currency)
         code = currency['code']
-        timestamp = self.safe_integer(transaction, 'createdAt')
+        timestamp = self.safe_integer_2(transaction, 'createdAt', 'submitedAt')
         type = self.safe_string_lower(transaction, 'type')
         feeCost = self.from_en(self.safe_float(transaction, 'feeEv'), currency['valueScale'], currency['precision'])
         fee = None
