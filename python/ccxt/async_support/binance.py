@@ -133,6 +133,7 @@ class binance(Exchange):
                         'margin/priceIndex',
                         # these endpoints require self.apiKey + self.secret
                         'asset/assetDividend',
+                        'asset/transfer',
                         'margin/loan',
                         'margin/repay',
                         'margin/account',
@@ -208,6 +209,7 @@ class binance(Exchange):
                     ],
                     'post': [
                         'asset/dust',
+                        'asset/transfer',
                         'account/disableFastWithdrawSwitch',
                         'account/enableFastWithdrawSwitch',
                         'capital/withdraw/apply',
@@ -493,6 +495,7 @@ class binance(Exchange):
             },
             # https://binance-docs.github.io/apidocs/spot/en/#error-codes-2
             'exceptions': {
+                'You are not authorized to execute self request.': PermissionDenied,  # {"msg":"You are not authorized to execute self request."}
                 'API key does not exist': AuthenticationError,
                 'Order would trigger immediately.': OrderImmediatelyFillable,
                 'Stop price would trigger immediately.': OrderImmediatelyFillable,  # {"code":-2010,"msg":"Stop price would trigger immediately."}
@@ -539,10 +542,12 @@ class binance(Exchange):
                 '-2013': OrderNotFound,  # fetchOrder(1, 'BTC/USDT') -> 'Order does not exist'
                 '-2014': AuthenticationError,  # {"code":-2014, "msg": "API-key format invalid."}
                 '-2015': AuthenticationError,  # "Invalid API-key, IP, or permissions for action."
+                '-2019': InsufficientFunds,  # {"code":-2019,"msg":"Margin is insufficient."}
                 '-3005': InsufficientFunds,  # {"code":-3005,"msg":"Transferring out not allowed. Transfer out amount exceeds max amount."}
                 '-3008': InsufficientFunds,  # {"code":-3008,"msg":"Borrow not allowed. Your borrow amount has exceed maximum borrow amount."}
                 '-3010': ExchangeError,  # {"code":-3010,"msg":"Repay not allowed. Repay amount exceeds borrow amount."}
                 '-3022': AccountSuspended,  # You account's trading is banned.
+                '-4028': BadRequest,  # {"code":-4028,"msg":"Leverage 100 is not valid"}
             },
         })
 
@@ -738,9 +743,8 @@ class binance(Exchange):
             quoteId = self.safe_string(market, 'quoteAsset')
             base = self.safe_currency_code(baseId)
             quote = self.safe_currency_code(quoteId)
-            parts = id.split('_')
-            lastPart = self.safe_string(parts, 1)
-            idSymbol = (delivery) and (lastPart != 'PERP')
+            contractType = self.safe_string(market, 'contractType')
+            idSymbol = (future or delivery) and (contractType != 'PERPETUAL')
             symbol = id if idSymbol else (base + '/' + quote)
             filters = self.safe_value(market, 'filters', [])
             filtersByType = self.index_by(filters, 'filterType')
@@ -814,7 +818,7 @@ class binance(Exchange):
                 }
             if 'MIN_NOTIONAL' in filtersByType:
                 filter = self.safe_value(filtersByType, 'MIN_NOTIONAL', {})
-                entry['limits']['cost']['min'] = self.safe_float(filter, 'minNotional')
+                entry['limits']['cost']['min'] = self.safe_float_2(filter, 'minNotional', 'notional')
             result.append(entry)
         return result
 
@@ -1193,10 +1197,16 @@ class binance(Exchange):
             'symbol': market['id'],
             'interval': self.timeframes[timeframe],
         }
+        # binance docs say that the default limit 500, max 1500 for futures, max 1000 for spot markets
+        # the reality is that the time range wider than 500 candles won't work right
+        defaultLimit = 500
+        limit = defaultLimit if (limit is None) else min(defaultLimit, limit)
+        duration = self.parse_timeframe(timeframe)
         if since is not None:
             request['startTime'] = since
-        if limit is not None:
-            request['limit'] = limit  # default == max == 500
+            endTime = self.sum(since, limit * duration * 1000 - 1)
+            now = self.milliseconds()
+            request['endTime'] = min(now, endTime)
         method = 'publicGetKlines'
         if market['future']:
             method = 'fapiPublicGetKlines'
@@ -1695,7 +1705,7 @@ class binance(Exchange):
 
     async def fetch_orders(self, symbol=None, since=None, limit=None, params={}):
         if symbol is None:
-            raise ArgumentsRequired(self.id + ' fetchOrders requires a symbol argument')
+            raise ArgumentsRequired(self.id + ' fetchOrders() requires a symbol argument')
         await self.load_markets()
         market = self.market(symbol)
         defaultType = self.safe_string_2(self.options, 'fetchOrders', 'defaultType', market['type'])
@@ -2177,6 +2187,8 @@ class binance(Exchange):
             if len(tag) < 1:
                 tag = None
         txid = self.safe_string(transaction, 'txId')
+        if (txid is not None) and (txid.find('Internal transfer ') >= 0):
+            txid = txid[18:]
         currencyId = self.safe_string(transaction, 'asset')
         code = self.safe_currency_code(currencyId, currency)
         timestamp = None

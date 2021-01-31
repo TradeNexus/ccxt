@@ -14,7 +14,7 @@ module.exports = class ftx extends Exchange {
             'id': 'ftx',
             'name': 'FTX',
             'countries': [ 'HK' ],
-            'rateLimit': 100,
+            'rateLimit': 34,
             'certified': true,
             'pro': true,
             'hostname': 'ftx.com', // or ftx.us
@@ -1193,12 +1193,12 @@ module.exports = class ftx extends Exchange {
             }
         } else {
             if (clientOrderId === undefined) {
+                method = 'privatePostOrdersOrderIdModify';
+                request['order_id'] = id;
+            } else {
                 method = 'privatePostOrdersByClientIdClientOrderIdModify';
                 request['client_order_id'] = clientOrderId;
                 // request['clientId'] = clientOrderId;
-            } else {
-                method = 'privatePostOrdersOrderIdModify';
-                request['order_id'] = id;
             }
             if (price !== undefined) {
                 request['price'] = parseFloat (this.priceToPrecision (symbol, price));

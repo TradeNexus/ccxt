@@ -161,8 +161,8 @@ module.exports = class bitmart extends Exchange {
                 'trading': {
                     'tierBased': true,
                     'percentage': true,
-                    'taker': 0.002,
-                    'maker': 0.001,
+                    'taker': 0.0025,
+                    'maker': 0.0025,
                     'tiers': {
                         'taker': [
                             [0, 0.20 / 100],
@@ -296,6 +296,7 @@ module.exports = class bitmart extends Exchange {
                 'broad': {},
             },
             'commonCurrencies': {
+                'COT': 'Community Coin',
                 'ONE': 'Menlo One',
                 'PLA': 'Plair',
             },
@@ -1976,7 +1977,7 @@ module.exports = class bitmart extends Exchange {
 
     async fetchOrders (symbol = undefined, since = undefined, limit = undefined, params = {}) {
         if (symbol === undefined) {
-            throw new ArgumentsRequired (this.id + ' fetchOrders requires a symbol argument');
+            throw new ArgumentsRequired (this.id + ' fetchOrders() requires a symbol argument');
         }
         await this.loadMarkets ();
         const market = this.market (symbol);

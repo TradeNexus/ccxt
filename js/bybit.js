@@ -289,7 +289,7 @@ module.exports = class bybit extends Exchange {
                 },
                 'code': 'BTC',
                 'cancelAllOrders': {
-                    'method': 'v2PrivatePostOrderCancelAll', // v2PrivatePostStopOrderCancelAll
+                    // 'method': 'v2PrivatePostOrderCancelAll', // v2PrivatePostStopOrderCancelAll
                 },
                 'recvWindow': 5 * 1000, // 5 sec default
                 'timeDifference': 0, // the difference between system clock and Binance clock
@@ -1543,7 +1543,7 @@ module.exports = class bybit extends Exchange {
         const request = {
             'symbol': market['id'],
         };
-        const options = this.safeValue (this.options, 'cancelAllOrders');
+        const options = this.safeValue (this.options, 'cancelAllOrders', {});
         const marketTypes = this.safeValue (this.options, 'marketTypes', {});
         const marketType = this.safeString (marketTypes, symbol);
         const defaultMethod = (marketType === 'linear') ? 'privateLinearPostOrderCancelAll' : 'v2PrivatePostOrderCancelAll';
@@ -2198,13 +2198,7 @@ module.exports = class bybit extends Exchange {
                 'recv_window': this.options['recvWindow'],
                 'timestamp': timestamp,
             });
-            let auth = this.rawencode (this.keysort (query));
-            // https://github.com/ccxt/ccxt/issues/7377
-            // https://github.com/ccxt/ccxt/issues/7515
-            // bybit encodes whole floats as integers without .0 for conditional stop-orders only
-            if (path.indexOf ('stop-order') >= 0) {
-                auth = auth.replace ('.0&', '&');
-            }
+            const auth = this.rawencode (this.keysort (query));
             const signature = this.hmac (this.encode (auth), this.encode (this.secret));
             if (method === 'POST') {
                 body = this.json (this.extend (query, {

@@ -31,7 +31,7 @@ class ftx(Exchange):
             'id': 'ftx',
             'name': 'FTX',
             'countries': ['HK'],
-            'rateLimit': 100,
+            'rateLimit': 34,
             'certified': True,
             'pro': True,
             'hostname': 'ftx.com',  # or ftx.us
@@ -1161,12 +1161,12 @@ class ftx(Exchange):
                 request['trailValue'] = float(self.price_to_precision(symbol, trailValue))
         else:
             if clientOrderId is None:
+                method = 'privatePostOrdersOrderIdModify'
+                request['order_id'] = id
+            else:
                 method = 'privatePostOrdersByClientIdClientOrderIdModify'
                 request['client_order_id'] = clientOrderId
                 # request['clientId'] = clientOrderId
-            else:
-                method = 'privatePostOrdersOrderIdModify'
-                request['order_id'] = id
             if price is not None:
                 request['price'] = float(self.price_to_precision(symbol, price))
         if amount is not None:

@@ -186,8 +186,8 @@ class bitmart(Exchange):
                 'trading': {
                     'tierBased': True,
                     'percentage': True,
-                    'taker': 0.002,
-                    'maker': 0.001,
+                    'taker': 0.0025,
+                    'maker': 0.0025,
                     'tiers': {
                         'taker': [
                             [0, 0.20 / 100],
@@ -321,6 +321,7 @@ class bitmart(Exchange):
                 'broad': {},
             },
             'commonCurrencies': {
+                'COT': 'Community Coin',
                 'ONE': 'Menlo One',
                 'PLA': 'Plair',
             },
@@ -1900,7 +1901,7 @@ class bitmart(Exchange):
 
     def fetch_orders(self, symbol=None, since=None, limit=None, params={}):
         if symbol is None:
-            raise ArgumentsRequired(self.id + ' fetchOrders requires a symbol argument')
+            raise ArgumentsRequired(self.id + ' fetchOrders() requires a symbol argument')
         self.load_markets()
         market = self.market(symbol)
         if not (market['swap'] or market['future']):

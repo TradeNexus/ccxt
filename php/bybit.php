@@ -291,7 +291,7 @@ class bybit extends Exchange {
                 ),
                 'code' => 'BTC',
                 'cancelAllOrders' => array(
-                    'method' => 'v2PrivatePostOrderCancelAll', // v2PrivatePostStopOrderCancelAll
+                    // 'method' => 'v2PrivatePostOrderCancelAll', // v2PrivatePostStopOrderCancelAll
                 ),
                 'recvWindow' => 5 * 1000, // 5 sec default
                 'timeDifference' => 0, // the difference between system clock and Binance clock
@@ -1545,7 +1545,7 @@ class bybit extends Exchange {
         $request = array(
             'symbol' => $market['id'],
         );
-        $options = $this->safe_value($this->options, 'cancelAllOrders');
+        $options = $this->safe_value($this->options, 'cancelAllOrders', array());
         $marketTypes = $this->safe_value($this->options, 'marketTypes', array());
         $marketType = $this->safe_string($marketTypes, $symbol);
         $defaultMethod = ($marketType === 'linear') ? 'privateLinearPostOrderCancelAll' : 'v2PrivatePostOrderCancelAll';
@@ -2201,12 +2201,6 @@ class bybit extends Exchange {
                 'timestamp' => $timestamp,
             ));
             $auth = $this->rawencode($this->keysort($query));
-            // https://github.com/ccxt/ccxt/issues/7377
-            // https://github.com/ccxt/ccxt/issues/7515
-            // bybit encodes whole floats as integers without .0 for conditional stop-orders only
-            if (mb_strpos($path, 'stop-order') !== false) {
-                $auth = str_replace('.0&', '&', $auth);
-            }
             $signature = $this->hmac($this->encode($auth), $this->encode($this->secret));
             if ($method === 'POST') {
                 $body = $this->json(array_merge($query, array(

@@ -113,6 +113,7 @@ module.exports = class binance extends Exchange {
                         'margin/priceIndex',
                         // these endpoints require this.apiKey + this.secret
                         'asset/assetDividend',
+                        'asset/transfer',
                         'margin/loan',
                         'margin/repay',
                         'margin/account',
@@ -188,6 +189,7 @@ module.exports = class binance extends Exchange {
                     ],
                     'post': [
                         'asset/dust',
+                        'asset/transfer',
                         'account/disableFastWithdrawSwitch',
                         'account/enableFastWithdrawSwitch',
                         'capital/withdraw/apply',
@@ -473,6 +475,7 @@ module.exports = class binance extends Exchange {
             },
             // https://binance-docs.github.io/apidocs/spot/en/#error-codes-2
             'exceptions': {
+                'You are not authorized to execute this request.': PermissionDenied, // {"msg":"You are not authorized to execute this request."}
                 'API key does not exist': AuthenticationError,
                 'Order would trigger immediately.': OrderImmediatelyFillable,
                 'Stop price would trigger immediately.': OrderImmediatelyFillable, // {"code":-2010,"msg":"Stop price would trigger immediately."}
@@ -519,10 +522,12 @@ module.exports = class binance extends Exchange {
                 '-2013': OrderNotFound, // fetchOrder (1, 'BTC/USDT') -> 'Order does not exist'
                 '-2014': AuthenticationError, // { "code":-2014, "msg": "API-key format invalid." }
                 '-2015': AuthenticationError, // "Invalid API-key, IP, or permissions for action."
+                '-2019': InsufficientFunds, // {"code":-2019,"msg":"Margin is insufficient."}
                 '-3005': InsufficientFunds, // {"code":-3005,"msg":"Transferring out not allowed. Transfer out amount exceeds max amount."}
                 '-3008': InsufficientFunds, // {"code":-3008,"msg":"Borrow not allowed. Your borrow amount has exceed maximum borrow amount."}
                 '-3010': ExchangeError, // {"code":-3010,"msg":"Repay not allowed. Repay amount exceeds borrow amount."}
                 '-3022': AccountSuspended, // You account's trading is banned.
+                '-4028': BadRequest, // {"code":-4028,"msg":"Leverage 100 is not valid"}
             },
         });
     }
@@ -726,9 +731,8 @@ module.exports = class binance extends Exchange {
             const quoteId = this.safeString (market, 'quoteAsset');
             const base = this.safeCurrencyCode (baseId);
             const quote = this.safeCurrencyCode (quoteId);
-            const parts = id.split ('_');
-            const lastPart = this.safeString (parts, 1);
-            const idSymbol = (delivery) && (lastPart !== 'PERP');
+            const contractType = this.safeString (market, 'contractType');
+            const idSymbol = (future || delivery) && (contractType !== 'PERPETUAL');
             const symbol = idSymbol ? id : (base + '/' + quote);
             const filters = this.safeValue (market, 'filters', []);
             const filtersByType = this.indexBy (filters, 'filterType');
@@ -806,7 +810,7 @@ module.exports = class binance extends Exchange {
             }
             if ('MIN_NOTIONAL' in filtersByType) {
                 const filter = this.safeValue (filtersByType, 'MIN_NOTIONAL', {});
-                entry['limits']['cost']['min'] = this.safeFloat (filter, 'minNotional');
+                entry['limits']['cost']['min'] = this.safeFloat2 (filter, 'minNotional', 'notional');
             }
             result.push (entry);
         }
@@ -1212,11 +1216,16 @@ module.exports = class binance extends Exchange {
             'symbol': market['id'],
             'interval': this.timeframes[timeframe],
         };
+        // binance docs say that the default limit 500, max 1500 for futures, max 1000 for spot markets
+        // the reality is that the time range wider than 500 candles won't work right
+        const defaultLimit = 500;
+        limit = (limit === undefined) ? defaultLimit : Math.min (defaultLimit, limit);
+        const duration = this.parseTimeframe (timeframe);
         if (since !== undefined) {
             request['startTime'] = since;
-        }
-        if (limit !== undefined) {
-            request['limit'] = limit; // default == max == 500
+            const endTime = this.sum (since, limit * duration * 1000 - 1);
+            const now = this.milliseconds ();
+            request['endTime'] = Math.min (now, endTime);
         }
         let method = 'publicGetKlines';
         if (market['future']) {
@@ -1775,7 +1784,7 @@ module.exports = class binance extends Exchange {
 
     async fetchOrders (symbol = undefined, since = undefined, limit = undefined, params = {}) {
         if (symbol === undefined) {
-            throw new ArgumentsRequired (this.id + ' fetchOrders requires a symbol argument');
+            throw new ArgumentsRequired (this.id + ' fetchOrders() requires a symbol argument');
         }
         await this.loadMarkets ();
         const market = this.market (symbol);
@@ -2296,7 +2305,10 @@ module.exports = class binance extends Exchange {
                 tag = undefined;
             }
         }
-        const txid = this.safeString (transaction, 'txId');
+        let txid = this.safeString (transaction, 'txId');
+        if ((txid !== undefined) && (txid.indexOf ('Internal transfer ') >= 0)) {
+            txid = txid.slice (18);
+        }
         const currencyId = this.safeString (transaction, 'asset');
         const code = this.safeCurrencyCode (currencyId, currency);
         let timestamp = undefined;
