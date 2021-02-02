@@ -238,6 +238,7 @@ class binance extends Exchange {
                         'userDataStream/isolated',
                     ),
                     'delete' => array(
+                        'margin/openOrders',
                         'margin/order',
                         'userDataStream',
                         'userDataStream/isolated',
@@ -1219,14 +1220,15 @@ class binance extends Exchange {
     public function fetch_ohlcv($symbol, $timeframe = '1m', $since = null, $limit = null, $params = array ()) {
         $this->load_markets();
         $market = $this->market($symbol);
-        $request = array(
-            'symbol' => $market['id'],
-            'interval' => $this->timeframes[$timeframe],
-        );
         // binance docs say that the default $limit 500, max 1500 for futures, max 1000 for spot markets
         // the reality is that the time range wider than 500 candles won't work right
         $defaultLimit = 500;
         $limit = ($limit === null) ? $defaultLimit : min ($defaultLimit, $limit);
+        $request = array(
+            'symbol' => $market['id'],
+            'interval' => $this->timeframes[$timeframe],
+            'limit' => $limit,
+        );
         $duration = $this->parse_timeframe($timeframe);
         if ($since !== null) {
             $request['startTime'] = $since;
@@ -1731,7 +1733,7 @@ class binance extends Exchange {
             $quantityIsRequired = true;
             $callbackRate = $this->safe_float($params, 'callbackRate');
             if ($callbackRate === null) {
-                throw new InvalidOrder($this->id . ' createOrder $method requires a $callbackRate extra param for a ' . $type . ' order');
+                throw new InvalidOrder($this->id . ' createOrder() requires a $callbackRate extra param for a ' . $type . ' order');
             }
         }
         if ($quantityIsRequired) {
@@ -1739,7 +1741,7 @@ class binance extends Exchange {
         }
         if ($priceIsRequired) {
             if ($price === null) {
-                throw new InvalidOrder($this->id . ' createOrder $method requires a $price argument for a ' . $type . ' order');
+                throw new InvalidOrder($this->id . ' createOrder() requires a $price argument for a ' . $type . ' order');
             }
             $request['price'] = $this->price_to_precision($symbol, $price);
         }
@@ -1749,7 +1751,7 @@ class binance extends Exchange {
         if ($stopPriceIsRequired) {
             $stopPrice = $this->safe_float($params, 'stopPrice');
             if ($stopPrice === null) {
-                throw new InvalidOrder($this->id . ' createOrder $method requires a $stopPrice extra param for a ' . $type . ' order');
+                throw new InvalidOrder($this->id . ' createOrder() requires a $stopPrice extra param for a ' . $type . ' order');
             } else {
                 $params = $this->omit($params, 'stopPrice');
                 $request['stopPrice'] = $this->price_to_precision($symbol, $stopPrice);
@@ -1761,7 +1763,7 @@ class binance extends Exchange {
 
     public function fetch_order($id, $symbol = null, $params = array ()) {
         if ($symbol === null) {
-            throw new ArgumentsRequired($this->id . ' fetchOrder requires a $symbol argument');
+            throw new ArgumentsRequired($this->id . ' fetchOrder() requires a $symbol argument');
         }
         $this->load_markets();
         $market = $this->market($symbol);
@@ -1904,7 +1906,7 @@ class binance extends Exchange {
 
     public function cancel_order($id, $symbol = null, $params = array ()) {
         if ($symbol === null) {
-            throw new ArgumentsRequired($this->id . ' cancelOrder requires a $symbol argument');
+            throw new ArgumentsRequired($this->id . ' cancelOrder() requires a $symbol argument');
         }
         $this->load_markets();
         $market = $this->market($symbol);
@@ -1937,7 +1939,7 @@ class binance extends Exchange {
 
     public function cancel_all_orders($symbol = null, $params = array ()) {
         if ($symbol === null) {
-            throw new ArgumentsRequired($this->id . ' cancelAllOrders requires a $symbol argument');
+            throw new ArgumentsRequired($this->id . ' cancelAllOrders() requires a $symbol argument');
         }
         $this->load_markets();
         $market = $this->market($symbol);
@@ -1948,7 +1950,9 @@ class binance extends Exchange {
         $type = $this->safe_string($params, 'type', $defaultType);
         $query = $this->omit($params, 'type');
         $method = 'privateDeleteOpenOrders';
-        if ($type === 'future') {
+        if ($type === 'margin') {
+            $method = 'sapiDeleteMarginOpenOrders';
+        } else if ($type === 'future') {
             $method = 'fapiPrivateDeleteAllOpenOrders';
         } else if ($type === 'delivery') {
             $method = 'dapiPrivateDeleteAllOpenOrders';
@@ -2014,7 +2018,7 @@ class binance extends Exchange {
 
     public function fetch_my_trades($symbol = null, $since = null, $limit = null, $params = array ()) {
         if ($symbol === null) {
-            throw new ArgumentsRequired($this->id . ' fetchMyTrades requires a $symbol argument');
+            throw new ArgumentsRequired($this->id . ' fetchMyTrades() requires a $symbol argument');
         }
         $this->load_markets();
         $market = $this->market($symbol);
