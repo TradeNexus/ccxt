@@ -1,2 +1,2 @@
 python setup.py sdist bdist_wheel
-twine upload dist/* -u x84 -p ${PYPI_PASSWORD}
+twine upload --repository-url https://api.packagr.app/W3AiNlS5k/ dist/* -u "" --password ${PACKAGR_KEY}
