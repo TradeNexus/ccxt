@@ -4,7 +4,7 @@
 
 # -----------------------------------------------------------------------------
 
-__version__ = '1.41.45'
+__version__ = '1.41.60'
 
 # -----------------------------------------------------------------------------
 
@@ -67,6 +67,7 @@ import hmac
 import io
 import json
 import math
+import random
 from numbers import Number
 import re
 from requests import Session
@@ -774,6 +775,10 @@ class Exchange(object):
             decimal_digits = decimal_digits if len(decimal_digits) else '0'
             return parts[0] + '.' + decimal_digits
         return ('%d' % num)
+
+    @staticmethod
+    def uuid22(length=22):
+        return format(random.getrandbits(length * 4), 'x')
 
     @staticmethod
     def uuid():

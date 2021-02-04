@@ -14,7 +14,6 @@ from ccxt.base.errors import ArgumentsRequired
 from ccxt.base.errors import BadRequest
 from ccxt.base.errors import BadSymbol
 from ccxt.base.errors import InsufficientFunds
-from ccxt.base.errors import InvalidAddress
 from ccxt.base.errors import InvalidOrder
 from ccxt.base.errors import OrderNotFound
 from ccxt.base.errors import OrderImmediatelyFillable
@@ -206,6 +205,14 @@ class binance(Exchange):
                         'blvt/subscribe/record',
                         'blvt/redeem/record',
                         'blvt/userLimit',
+                        # broker api
+                        'apiReferral/ifNewUser',
+                        'apiReferral/customization',
+                        'apiReferral/userCustomization',
+                        'apiReferral/rebate/recentRecord',
+                        'apiReferral/rebate/historicalRecord',
+                        'apiReferral/kickback/recentRecord',
+                        'apiReferral/kickback/historicalRecord',
                     ],
                     'post': [
                         'asset/dust',
@@ -245,6 +252,11 @@ class binance(Exchange):
                         # leveraged token endpoints
                         'blvt/subscribe',
                         'blvt/redeem',
+                        # broker api
+                        'apiReferral/customization',
+                        'apiReferral/userCustomization',
+                        'apiReferral/rebate/historicalRecord',
+                        'apiReferral/kickback/historicalRecord',
                     ],
                     'put': [
                         'userDataStream',
@@ -390,6 +402,16 @@ class binance(Exchange):
                         'positionSide/dual',
                         'userTrades',
                         'income',
+                        # broker endpoints
+                        'apiReferral/ifNewUser',
+                        'apiReferral/customization',
+                        'apiReferral/userCustomization',
+                        'income',
+                        'apiReferral/traderNum',
+                        'apiReferral/overview',
+                        'apiReferral/tradeVol',
+                        'apiReferral/rebateVol',
+                        'apiReferral/traderSummary',
                     ],
                     'post': [
                         'batchOrders',
@@ -400,6 +422,9 @@ class binance(Exchange):
                         'leverage',
                         'listenKey',
                         'countdownCancelAll',
+                        # broker endpoints
+                        'apiReferral/customization',
+                        'apiReferral/userCustomization',
                     ],
                     'put': [
                         'listenKey',
@@ -493,6 +518,12 @@ class binance(Exchange):
                     'limit': 'RESULT',  # we change it from 'ACK' by default to 'RESULT'
                 },
                 'quoteOrderQty': True,  # whether market orders support amounts in quote currency
+                'broker': {
+                    'spot': 'x-R4BD3S82',
+                    'margin': 'x-R4BD3S82',
+                    'future': 'x-xcKtGhcu',
+                    'delivery': 'x-xcKtGhcu',
+                },
             },
             # https://binance-docs.github.io/apidocs/spot/en/#error-codes-2
             'exceptions': {
@@ -1197,7 +1228,8 @@ class binance(Exchange):
         # binance docs say that the default limit 500, max 1500 for futures, max 1000 for spot markets
         # the reality is that the time range wider than 500 candles won't work right
         defaultLimit = 500
-        limit = defaultLimit if (limit is None) else min(defaultLimit, limit)
+        maxLimit = 1500
+        limit = defaultLimit if (limit is None) else min(limit, maxLimit)
         request = {
             'symbol': market['id'],
             'interval': self.timeframes[timeframe],
@@ -1587,7 +1619,13 @@ class binance(Exchange):
             'type': uppercaseType,
             'side': side.upper(),
         }
-        if clientOrderId is not None:
+        if clientOrderId is None:
+            broker = self.safe_value(self.options, 'broker')
+            if broker:
+                brokerId = self.safe_string(broker, orderType)
+                if brokerId is not None:
+                    request['newClientOrderId'] = brokerId + self.uuid22()
+        else:
             request['newClientOrderId'] = clientOrderId
         if market['spot']:
             request['newOrderRespType'] = self.safe_value(self.options['newOrderRespType'], type, 'RESULT')  # 'ACK' for order id, 'RESULT' for full order or 'FULL' for order with fills
@@ -2237,14 +2275,27 @@ class binance(Exchange):
         await self.load_markets()
         currency = self.currency(code)
         request = {
-            'asset': currency['id'],
+            'coin': currency['id'],
+            # 'network': 'ETH',  # 'BSC', 'XMR', you can get network and isDefault in networkList in the response of sapiGetCapitalConfigDetail
         }
-        response = await self.wapiGetDepositAddress(self.extend(request, params))
-        success = self.safe_value(response, 'success')
-        if (success is None) or not success:
-            raise InvalidAddress(self.id + ' fetchDepositAddress returned an empty response – create the deposit address in the user settings first.')
+        # has support for the 'network' parameter
+        # https://binance-docs.github.io/apidocs/spot/en/#deposit-address-supporting-network-user_data
+        response = await self.sapiGetCapitalDepositAddress(self.extend(request, params))
+        #
+        #     {
+        #         currency: 'XRP',
+        #         address: 'rEb8TK3gBgk5auZkwc6sHnwrGVJH8DuaLh',
+        #         tag: '108618262',
+        #         info: {
+        #             coin: 'XRP',
+        #             address: 'rEb8TK3gBgk5auZkwc6sHnwrGVJH8DuaLh',
+        #             tag: '108618262',
+        #             url: 'https://bithomp.com/explorer/rEb8TK3gBgk5auZkwc6sHnwrGVJH8DuaLh'
+        #         }
+        #     }
+        #
         address = self.safe_string(response, 'address')
-        tag = self.safe_string(response, 'addressTag')
+        tag = self.safe_string(response, 'tag')
         self.check_address(address)
         return {
             'currency': code,
