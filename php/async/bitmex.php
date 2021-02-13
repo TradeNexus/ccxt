@@ -163,6 +163,7 @@ class bitmex extends Exchange {
                     'Access Denied' => '\\ccxt\\PermissionDenied',
                     'Duplicate clOrdID' => '\\ccxt\\InvalidOrder',
                     'orderQty is invalid' => '\\ccxt\\InvalidOrder',
+                    'Invalid orderQty' => '\\ccxt\\InvalidOrder',
                     'Invalid price' => '\\ccxt\\InvalidOrder',
                     'Invalid stopPx for ordType' => '\\ccxt\\InvalidOrder',
                 ),
