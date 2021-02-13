@@ -240,10 +240,10 @@ class kucoin extends Exchange {
                     'public' => array(
                         'GET' => array(
                             'status' => 'v1',
-                            'market/orderbook/level{level}' => 'v1',
+                            'market/orderbook/level{level}' => 'v2',
                             'market/orderbook/level2' => 'v2',
-                            'market/orderbook/level2_20' => 'v1',
-                            'market/orderbook/level2_100' => 'v1',
+                            'market/orderbook/level2_20' => 'v2',
+                            'market/orderbook/level2_100' => 'v2',
                         ),
                     ),
                     'private' => array(
@@ -686,7 +686,10 @@ class kucoin extends Exchange {
             $address = str_replace('bitcoincash:', '', $address);
         }
         $tag = $this->safe_string($data, 'memo');
-        $this->check_address($address);
+        if ($code !== 'NIM') {
+            // contains spaces
+            $this->check_address($address);
+        }
         return array(
             'info' => $response,
             'currency' => $code,
@@ -704,12 +707,11 @@ class kucoin extends Exchange {
         // BTC array("$code":"200000","$data":array("$address":"36SjucKqQpQSvsak9A7h6qzFjrVXpRNZhE","memo":""))
         $data = $this->safe_value($response, 'data', array());
         $address = $this->safe_string($data, 'address');
-        // BCH/BSV is returned with a "bitcoincash:" prefix, which we cut off here and only keep the $address
-        if ($address !== null) {
-            $address = str_replace('bitcoincash:', '', $address);
-        }
         $tag = $this->safe_string($data, 'memo');
-        $this->check_address($address);
+        if ($code !== 'NIM') {
+            // contains spaces
+            $this->check_address($address);
+        }
         return array(
             'info' => $response,
             'currency' => $code,

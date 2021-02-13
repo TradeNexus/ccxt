@@ -393,7 +393,6 @@ class binance extends Exchange {
                         'apiReferral/ifNewUser',
                         'apiReferral/customization',
                         'apiReferral/userCustomization',
-                        'income',
                         'apiReferral/traderNum',
                         'apiReferral/overview',
                         'apiReferral/tradeVol',
@@ -514,6 +513,7 @@ class binance extends Exchange {
             ),
             // https://binance-docs.github.io/apidocs/spot/en/#error-codes-2
             'exceptions' => array(
+                'System abnormality' => '\\ccxt\\ExchangeError', // array("code":-1000,"msg":"System abnormality")
                 'You are not authorized to execute this request.' => '\\ccxt\\PermissionDenied', // array("msg":"You are not authorized to execute this request.")
                 'API key does not exist' => '\\ccxt\\AuthenticationError',
                 'Order would trigger immediately.' => '\\ccxt\\OrderImmediatelyFillable',
@@ -1264,9 +1264,11 @@ class binance extends Exchange {
         $duration = $this->parse_timeframe($timeframe);
         if ($since !== null) {
             $request['startTime'] = $since;
-            $endTime = $this->sum($since, $limit * $duration * 1000 - 1);
-            $now = $this->milliseconds();
-            $request['endTime'] = min ($now, $endTime);
+            if ($since > 0) {
+                $endTime = $this->sum($since, $limit * $duration * 1000 - 1);
+                $now = $this->milliseconds();
+                $request['endTime'] = min ($now, $endTime);
+            }
         }
         $method = 'publicGetKlines';
         if ($market['future']) {
@@ -2068,6 +2070,8 @@ class binance extends Exchange {
         $method = null;
         if ($type === 'spot') {
             $method = 'privateGetMyTrades';
+        } else if ($type === 'margin') {
+            $method = 'sapiGetMarginMyTrades';
         } else if ($type === 'future') {
             $method = 'fapiPrivateGetUserTrades';
         } else if ($type === 'delivery') {

@@ -252,10 +252,10 @@ class kucoin(Exchange):
                     'public': {
                         'GET': {
                             'status': 'v1',
-                            'market/orderbook/level{level}': 'v1',
+                            'market/orderbook/level{level}': 'v2',
                             'market/orderbook/level2': 'v2',
-                            'market/orderbook/level2_20': 'v1',
-                            'market/orderbook/level2_100': 'v1',
+                            'market/orderbook/level2_20': 'v2',
+                            'market/orderbook/level2_100': 'v2',
                         },
                     },
                     'private': {
@@ -674,7 +674,9 @@ class kucoin(Exchange):
         if address is not None:
             address = address.replace('bitcoincash:', '')
         tag = self.safe_string(data, 'memo')
-        self.check_address(address)
+        if code != 'NIM':
+            # contains spaces
+            self.check_address(address)
         return {
             'info': response,
             'currency': code,
@@ -691,11 +693,10 @@ class kucoin(Exchange):
         # BTC {"code":"200000","data":{"address":"36SjucKqQpQSvsak9A7h6qzFjrVXpRNZhE","memo":""}}
         data = self.safe_value(response, 'data', {})
         address = self.safe_string(data, 'address')
-        # BCH/BSV is returned with a "bitcoincash:" prefix, which we cut off here and only keep the address
-        if address is not None:
-            address = address.replace('bitcoincash:', '')
         tag = self.safe_string(data, 'memo')
-        self.check_address(address)
+        if code != 'NIM':
+            # contains spaces
+            self.check_address(address)
         return {
             'info': response,
             'currency': code,

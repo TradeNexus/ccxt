@@ -387,7 +387,6 @@ module.exports = class binance extends Exchange {
                         'apiReferral/ifNewUser',
                         'apiReferral/customization',
                         'apiReferral/userCustomization',
-                        'income',
                         'apiReferral/traderNum',
                         'apiReferral/overview',
                         'apiReferral/tradeVol',
@@ -508,6 +507,7 @@ module.exports = class binance extends Exchange {
             },
             // https://binance-docs.github.io/apidocs/spot/en/#error-codes-2
             'exceptions': {
+                'System abnormality': ExchangeError, // {"code":-1000,"msg":"System abnormality"}
                 'You are not authorized to execute this request.': PermissionDenied, // {"msg":"You are not authorized to execute this request."}
                 'API key does not exist': AuthenticationError,
                 'Order would trigger immediately.': OrderImmediatelyFillable,
@@ -1258,9 +1258,11 @@ module.exports = class binance extends Exchange {
         const duration = this.parseTimeframe (timeframe);
         if (since !== undefined) {
             request['startTime'] = since;
-            const endTime = this.sum (since, limit * duration * 1000 - 1);
-            const now = this.milliseconds ();
-            request['endTime'] = Math.min (now, endTime);
+            if (since > 0) {
+                const endTime = this.sum (since, limit * duration * 1000 - 1);
+                const now = this.milliseconds ();
+                request['endTime'] = Math.min (now, endTime);
+            }
         }
         let method = 'publicGetKlines';
         if (market['future']) {
@@ -2062,6 +2064,8 @@ module.exports = class binance extends Exchange {
         let method = undefined;
         if (type === 'spot') {
             method = 'privateGetMyTrades';
+        } else if (type === 'margin') {
+            method = 'sapiGetMarginMyTrades';
         } else if (type === 'future') {
             method = 'fapiPrivateGetUserTrades';
         } else if (type === 'delivery') {

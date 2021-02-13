@@ -406,7 +406,6 @@ class binance(Exchange):
                         'apiReferral/ifNewUser',
                         'apiReferral/customization',
                         'apiReferral/userCustomization',
-                        'income',
                         'apiReferral/traderNum',
                         'apiReferral/overview',
                         'apiReferral/tradeVol',
@@ -527,6 +526,7 @@ class binance(Exchange):
             },
             # https://binance-docs.github.io/apidocs/spot/en/#error-codes-2
             'exceptions': {
+                'System abnormality': ExchangeError,  # {"code":-1000,"msg":"System abnormality"}
                 'You are not authorized to execute self request.': PermissionDenied,  # {"msg":"You are not authorized to execute self request."}
                 'API key does not exist': AuthenticationError,
                 'Order would trigger immediately.': OrderImmediatelyFillable,
@@ -1238,9 +1238,10 @@ class binance(Exchange):
         duration = self.parse_timeframe(timeframe)
         if since is not None:
             request['startTime'] = since
-            endTime = self.sum(since, limit * duration * 1000 - 1)
-            now = self.milliseconds()
-            request['endTime'] = min(now, endTime)
+            if since > 0:
+                endTime = self.sum(since, limit * duration * 1000 - 1)
+                now = self.milliseconds()
+                request['endTime'] = min(now, endTime)
         method = 'publicGetKlines'
         if market['future']:
             method = 'fapiPublicGetKlines'
@@ -1961,6 +1962,8 @@ class binance(Exchange):
         method = None
         if type == 'spot':
             method = 'privateGetMyTrades'
+        elif type == 'margin':
+            method = 'sapiGetMarginMyTrades'
         elif type == 'future':
             method = 'fapiPrivateGetUserTrades'
         elif type == 'delivery':

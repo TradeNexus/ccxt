@@ -236,10 +236,10 @@ module.exports = class kucoin extends Exchange {
                     'public': {
                         'GET': {
                             'status': 'v1',
-                            'market/orderbook/level{level}': 'v1',
+                            'market/orderbook/level{level}': 'v2',
                             'market/orderbook/level2': 'v2',
-                            'market/orderbook/level2_20': 'v1',
-                            'market/orderbook/level2_100': 'v1',
+                            'market/orderbook/level2_20': 'v2',
+                            'market/orderbook/level2_100': 'v2',
                         },
                     },
                     'private': {
@@ -682,7 +682,10 @@ module.exports = class kucoin extends Exchange {
             address = address.replace ('bitcoincash:', '');
         }
         const tag = this.safeString (data, 'memo');
-        this.checkAddress (address);
+        if (code !== 'NIM') {
+            // contains spaces
+            this.checkAddress (address);
+        }
         return {
             'info': response,
             'currency': code,
@@ -699,13 +702,12 @@ module.exports = class kucoin extends Exchange {
         // BCH {"code":"200000","data":{"address":"bitcoincash:qza3m4nj9rx7l9r0cdadfqxts6f92shvhvr5ls4q7z","memo":""}}
         // BTC {"code":"200000","data":{"address":"36SjucKqQpQSvsak9A7h6qzFjrVXpRNZhE","memo":""}}
         const data = this.safeValue (response, 'data', {});
-        let address = this.safeString (data, 'address');
-        // BCH/BSV is returned with a "bitcoincash:" prefix, which we cut off here and only keep the address
-        if (address !== undefined) {
-            address = address.replace ('bitcoincash:', '');
-        }
+        const address = this.safeString (data, 'address');
         const tag = this.safeString (data, 'memo');
-        this.checkAddress (address);
+        if (code !== 'NIM') {
+            // contains spaces
+            this.checkAddress (address);
+        }
         return {
             'info': response,
             'currency': code,
