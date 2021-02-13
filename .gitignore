@@ -15,6 +15,7 @@ tmp/
 *.pyc
 .tox/
 coverage
+python/env
 .nyc_output
 travis-keys.sh
 exchanges.json
