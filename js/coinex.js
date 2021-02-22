@@ -92,6 +92,8 @@ module.exports = class coinex extends Exchange {
                         'order/status',
                         'order/status/batch',
                         'order/user/deals',
+                        'sub_account/balance',
+                        'sub_account/transfer/history',
                     ],
                     'post': [
                         'balance/coin/withdraw',
@@ -915,7 +917,7 @@ module.exports = class coinex extends Exchange {
                 'tonce': nonce.toString (),
             }, query);
             query = this.keysort (query);
-            const urlencoded = this.urlencode (query);
+            const urlencoded = this.rawencode (query);
             const signature = this.hash (this.encode (urlencoded + '&secret_key=' + this.secret));
             headers = {
                 'Authorization': signature.toUpperCase (),

@@ -789,16 +789,18 @@ module.exports = class bitvavo extends Exchange {
         const request = {
             'market': market['id'],
             'side': side,
-            'orderType': type,
+            'orderType': type, // 'market', 'limit', 'stopLoss', 'stopLossLimit', 'takeProfit', 'takeProfitLimit'
             // 'amount': this.amountToPrecision (symbol, amount),
             // 'price': this.priceToPrecision (symbol, price),
             // 'amountQuote': this.costToPrecision (symbol, cost),
-            // 'timeInForce': 'GTC', // "GTC" "IOC" "FOK"
-            // 'selfTradePrevention': "decrementAndCancel", // "decrementAndCancel" "cancelOldest" "cancelNewest" "cancelBoth"
+            // 'timeInForce': 'GTC', // 'GTC', 'IOC', 'FOK'
+            // 'selfTradePrevention': 'decrementAndCancel', // 'decrementAndCancel', 'cancelOldest', 'cancelNewest', 'cancelBoth'
             // 'postOnly': false,
             // 'disableMarketProtection': false, // don't cancel if the next fill price is 10% worse than the best fill price
             // 'responseRequired': true, // false is faster
         };
+        const isStopLimit = (type === 'stopLossLimit') || (type === 'takeProfitLimit');
+        const isStopMarket = (type === 'stopLoss') || (type === 'takeProfit');
         if (type === 'market') {
             let cost = undefined;
             if (price !== undefined) {
@@ -815,6 +817,26 @@ module.exports = class bitvavo extends Exchange {
             params = this.omit (params, [ 'cost', 'amountQuote' ]);
         } else if (type === 'limit') {
             request['price'] = this.priceToPrecision (symbol, price);
+            request['amount'] = this.amountToPrecision (symbol, amount);
+        } else if (isStopMarket || isStopLimit) {
+            let stopPrice = this.safeFloat2 (params, 'stopPrice', 'triggerAmount');
+            if (stopPrice === undefined) {
+                if (isStopLimit) {
+                    throw new ArgumentsRequired (this.id + ' createOrder requires a stopPrice parameter for a ' + type + ' order');
+                } else if (isStopMarket) {
+                    if (price === undefined) {
+                        throw new ArgumentsRequired (this.id + ' createOrder requires a price argument or a stopPrice parameter for a ' + type + ' order');
+                    } else {
+                        stopPrice = price;
+                    }
+                }
+            }
+            if (isStopLimit) {
+                request['price'] = this.priceToPrecision (symbol, price);
+            }
+            params = this.omit (params, [ 'stopPrice', 'triggerAmount' ]);
+            request['triggerAmount'] = this.priceToPrecision (symbol, stopPrice);
+            request['triggerType'] = 'price';
             request['amount'] = this.amountToPrecision (symbol, amount);
         }
         const response = await this.privatePostOrder (this.extend (request, params));
@@ -1092,6 +1114,7 @@ module.exports = class bitvavo extends Exchange {
             'partiallyFilled': 'open',
             'expired': 'canceled',
             'rejected': 'canceled',
+            'awaitingTrigger': 'open', // https://github.com/ccxt/ccxt/issues/8489
         };
         return this.safeString (statuses, status, status);
     }
@@ -1194,6 +1217,8 @@ module.exports = class bitvavo extends Exchange {
         }
         const timeInForce = this.safeString (order, 'timeInForce');
         const postOnly = this.safeValue (order, 'postOnly');
+        // https://github.com/ccxt/ccxt/issues/8489
+        const stopPrice = this.safeFloat (order, 'triggerPrice');
         return {
             'info': order,
             'id': id,
@@ -1207,7 +1232,7 @@ module.exports = class bitvavo extends Exchange {
             'postOnly': postOnly,
             'side': side,
             'price': price,
-            'stopPrice': undefined,
+            'stopPrice': stopPrice,
             'amount': amount,
             'cost': cost,
             'average': average,

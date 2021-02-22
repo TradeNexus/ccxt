@@ -448,7 +448,7 @@ class Transpiler {
             "import os",
             "import sys",
             "",
-            "root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))",
+            "root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))",
             "sys.path.append(root)",
             "",
             "# ----------------------------------------------------------------------------",
@@ -785,8 +785,8 @@ class Transpiler {
 
     transpilePythonAsyncToSync () {
 
-        const async = './python/test/test_async.py'
-        const sync = './python/test/test.py'
+        const async = './python/ccxt/test/test_async.py'
+        const sync = './python/ccxt/test/test_sync.py'
         log.magenta ('Transpiling ' + async .yellow + ' → ' + sync.yellow)
         const fileContents = fs.readFileSync (async, 'utf8')
         let lines = fileContents.split ("\n")
@@ -827,7 +827,7 @@ class Transpiler {
     transpilePhpAsyncToSync () {
 
         const async = './php/test/test_async.php'
-        const sync = './php/test/test.php'
+        const sync = './php/test/test_sync.php'
         log.magenta ('Transpiling ' + async .yellow + ' → ' + sync.yellow)
         const fileContents = fs.readFileSync (async, 'utf8')
         const syncBody = this.transpileAsyncPHPToSyncPHP (fileContents)
@@ -1211,7 +1211,7 @@ class Transpiler {
 
     transpileDateTimeTests () {
         const jsFile = './js/test/base/functions/test.datetime.js'
-        const pyFile = './python/test/test_exchange_datetime_functions.py'
+        const pyFile = './python/ccxt/test/test_exchange_datetime_functions.py'
         const phpFile = './php/test/test_exchange_datetime_functions.php'
 
         log.magenta ('Transpiling from', jsFile.yellow)
@@ -1252,7 +1252,7 @@ class Transpiler {
     transpilePrecisionTests () {
 
         const jsFile = './js/test/base/functions/test.number.js'
-        const pyFile = './python/test/test_decimal_to_precision.py'
+        const pyFile = './python/ccxt/test/test_decimal_to_precision.py'
         const phpFile = './php/test/decimal_to_precision.php'
 
         log.magenta ('Transpiling from', jsFile.yellow)
@@ -1337,7 +1337,7 @@ class Transpiler {
 
     transpileCryptoTests () {
         const jsFile = './js/test/base/functions/test.crypto.js'
-        const pyFile = './python/test/test_crypto.py'
+        const pyFile = './python/ccxt/test/test_crypto.py'
         const phpFile = './php/test/test_crypto.php'
 
         log.magenta ('Transpiling from', jsFile.yellow)
@@ -1406,22 +1406,22 @@ class Transpiler {
         const tests = [
             {
                 'jsFile': './js/test/Exchange/test.trade.js',
-                'pyFile': './python/test/test_trade.py',
+                'pyFile': './python/ccxt/test/test_trade.py',
                 'phpFile': './php/test/test_trade.php',
             },
             {
                 'jsFile': './js/test/Exchange/test.order.js',
-                'pyFile': './python/test/test_order.py',
+                'pyFile': './python/ccxt/test/test_order.py',
                 'phpFile': './php/test/test_order.php',
             },
             {
                 'jsFile': './js/test/Exchange/test.transaction.js',
-                'pyFile': './python/test/test_transaction.py',
+                'pyFile': './python/ccxt/test/test_transaction.py',
                 'phpFile': './php/test/test_transaction.php',
             },
             {
                 'jsFile': './js/test/Exchange/test.ohlcv.js',
-                'pyFile': './python/test/test_ohlcv.py',
+                'pyFile': './python/ccxt/test/test_ohlcv.py',
                 'phpFile': './php/test/test_ohlcv.php',
             },
         ]
@@ -1443,7 +1443,6 @@ class Transpiler {
         ])
 
         const pythonHeader = [
-            '',
             'import numbers  # noqa: E402',
             'try:',
             '    basestring  # basestring was removed in Python 3',
@@ -1454,7 +1453,7 @@ class Transpiler {
         ].join('\n')
 
         let { python3Body, python2Body, phpBody } = this.transpileJavaScriptToPythonAndPHP ({ js, removeEmptyLines: false })
-        const python = this.getPythonPreamble () + pythonHeader + python3Body;
+        const python = pythonHeader + python3Body;
         const php = this.getPHPPreamble (false) + phpBody;
 
         log.magenta ('→', test.pyFile.yellow)

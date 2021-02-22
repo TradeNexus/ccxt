@@ -136,6 +136,7 @@ class okex(Exchange):
                         'accounts/{currency}',
                         'accounts/{currency}/ledger',
                         'orders',
+                        'amend_order/{instrument_id}',
                         'orders_pending',
                         'orders/{order_id}',
                         'orders/{client_oid}',
@@ -226,6 +227,7 @@ class okex(Exchange):
                     'post': [
                         'accounts/{underlying}/leverage',
                         'order',
+                        'amend_order/{instrument_id}',
                         'orders',
                         'cancel_order/{instrument_id}/{order_id}',
                         'cancel_order/{instrument_id}/{client_oid}',
@@ -272,6 +274,7 @@ class okex(Exchange):
                     'post': [
                         'accounts/{instrument_id}/leverage',
                         'order',
+                        'amend_order/{instrument_id}',
                         'orders',
                         'cancel_order/{instrument_id}/{order_id}',
                         'cancel_order/{instrument_id}/{client_oid}',
@@ -587,7 +590,7 @@ class okex(Exchange):
                     '35031': InvalidOrder,  # {"code": 35031, "message": "Cancel order size too large"}
                     '35032': ExchangeError,  # {"code": 35032, "message": "Invalid user status"}
                     '35037': ExchangeError,  # No last traded price in cache
-                    '35039': ExchangeError,  # {"code": 35039, "message": "Open order quantity exceeds limit"}
+                    '35039': InsufficientFunds,  # {"code": 35039, "message": "Open order quantity exceeds limit"}
                     '35040': InvalidOrder,  # {"error_message":"Invalid order type","result":"true","error_code":"35040","order_id":"-1"}
                     '35044': ExchangeError,  # {"code": 35044, "message": "Invalid order status"}
                     '35046': InsufficientFunds,  # {"code": 35046, "message": "Negative account balance"}

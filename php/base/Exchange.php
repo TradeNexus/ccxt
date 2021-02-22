@@ -36,7 +36,7 @@ use Elliptic\EC;
 use Elliptic\EdDSA;
 use BN\BN;
 
-$version = '1.41.82.1';
+$version = '1.42.18.1';
 
 // rounding mode
 const TRUNCATE = 0;
@@ -55,7 +55,7 @@ const PAD_WITH_ZERO = 1;
 
 class Exchange {
 
-    const VERSION = '1.41.82.1';
+    const VERSION = '1.42.18.1';
 
     private static $base58_alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
     private static $base58_encoder = null;
@@ -1071,14 +1071,14 @@ class Exchange {
     public function set_sandbox_mode($enabled) {
         if ($enabled) {
             if (array_key_exists('test', $this->urls)) {
-                $this->urls['api_backup'] = $this->urls['api'];
+                $this->urls['apiBackup'] = $this->urls['api'];
                 $this->urls['api'] = $this->urls['test'];
             } else {
                 throw new NotSupported($this->id . ' does not have a sandbox URL');
             }
-        } elseif (array_key_exists('api_backup', $this->urls)) {
-            $this->urls['api'] = $this->urls['api_backup'];
-            unset($this->urls['api_backup']);
+        } elseif (array_key_exists('apiBackup', $this->urls)) {
+            $this->urls['api'] = $this->urls['apiBackup'];
+            unset($this->urls['apiBackup']);
         }
     }
 
@@ -1279,10 +1279,6 @@ class Exchange {
         return null;
     }
 
-    public function handle_errors($code, $reason, $url, $method, $headers, $body, $response, $request_headers, $request_body) {
-        // it's a stub function, does nothing in base code
-    }
-
     public function parse_json($json_string, $as_associative_array = true) {
         return json_decode($json_string, $as_associative_array);
     }
@@ -1304,6 +1300,14 @@ class Exchange {
 
     public function setHeaders($headers) {
         return $this->set_headers($headers);
+    }
+
+    public function handle_errors($code, $reason, $url, $method, $headers, $body, $response, $request_headers, $request_body) {
+        // it's a stub function, does nothing in base code
+    }
+
+    public function on_rest_response($code, $reason, $url, $method, $response_headers, $response_body, $request_headers, $request_body) {
+        return is_string($response_body) ? trim($response_body) : $response_body;
     }
 
     public function fetch($url, $method = 'GET', $headers = null, $body = null) {
@@ -1450,7 +1454,13 @@ class Exchange {
             curl_setopt_array($this->curl, $this->curl_options);
         }
 
-        $result = trim(curl_exec($this->curl));
+        $result = curl_exec($this->curl);
+
+        $curl_errno = curl_errno($this->curl);
+        $curl_error = curl_error($this->curl);
+        $http_status_code = curl_getinfo($this->curl, CURLINFO_HTTP_CODE);
+
+        $result = $this->on_rest_response($http_status_code, $http_status_text, $url, $method, $response_headers, $result, $headers, $body);
 
         $this->lastRestRequestTimestamp = $this->milliseconds();
 
@@ -1471,10 +1481,6 @@ class Exchange {
                 $this->last_json_response = $json_response;
             }
         }
-
-        $curl_errno = curl_errno($this->curl);
-        $curl_error = curl_error($this->curl);
-        $http_status_code = curl_getinfo($this->curl, CURLINFO_HTTP_CODE);
 
         if ($this->verbose) {
             print_r(array('Response:', $method, $url, $http_status_code, $curl_error, $response_headers, $result));
@@ -1788,9 +1794,22 @@ class Exchange {
             $result = $array;
         }
         if (isset($limit)) {
-            $result = ($tail && !$since_is_set) ?
-                array_slice($result, -$limit) :
-                array_slice($result, 0, $limit);
+            if (is_array($result)) {
+                $result = ($tail && !$since_is_set) ? array_slice($result, -$limit) : array_slice($result, 0, $limit);
+            } else {
+                $length = count($result);
+                if ($tail && !$since_is_set) {
+                    $start = max($length - $limit, 0);
+                } else {
+                    $start = 0;
+                }
+                $end = min($start + $limit, $length);
+                $result_copy = array();
+                for ($i = $start; $i < $end; $i++) {
+                    $result_copy[] = $result[$i];
+                }
+                $result = $result_copy;
+            }
         }
         return $result;
     }
@@ -1970,20 +1989,20 @@ class Exchange {
         return $result;
     }
 
-    public function filter_by_symbol_since_limit($array, $symbol = null, $since = null, $limit = null) {
-        return $this->filter_by_value_since_limit($array, 'symbol', $symbol, $since, $limit);
+    public function filter_by_symbol_since_limit($array, $symbol = null, $since = null, $limit = null, $tail = false) {
+        return $this->filter_by_value_since_limit($array, 'symbol', $symbol, $since, $limit, 'timestamp', $tail);
     }
 
-    public function filterBySymbolSinceLimit($array, $symbol = null, $since = null, $limit = null) {
-        return $this->filter_by_symbol_since_limit($array, $symbol, $since, $limit);
+    public function filterBySymbolSinceLimit($array, $symbol = null, $since = null, $limit = null, $tail = false) {
+        return $this->filter_by_symbol_since_limit($array, $symbol, $since, $limit, $tail);
     }
 
-    public function filter_by_currency_since_limit($array, $code = null, $since = null, $limit = null) {
-        return $this->filter_by_value_since_limit($array, 'currency', $code, $since, $limit);
+    public function filter_by_currency_since_limit($array, $code = null, $since = null, $limit = null, $tail = false) {
+        return $this->filter_by_value_since_limit($array, 'currency', $code, $since, $limit, 'timestamp', $tail);
     }
 
-    public function filterByCurrencySinceLimit($array, $code = null, $since = null, $limit = null) {
-        return $this->filter_by_currency_since_limit($array, $code, $since, $limit);
+    public function filterByCurrencySinceLimit($array, $code = null, $since = null, $limit = null, $tail = false) {
+        return $this->filter_by_currency_since_limit($array, $code, $since, $limit, $tail);
     }
 
     public function filter_by_array($objects, $key, $values = null, $indexed = true) {

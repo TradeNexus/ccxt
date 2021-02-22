@@ -42,6 +42,7 @@ class binance(Exchange):
                 'cancelOrder': True,
                 'CORS': False,
                 'createOrder': True,
+                'fetchCurrencies': True,
                 'fetchBalance': True,
                 'fetchBidsAsks': True,
                 'fetchClosedOrders': 'emulated',
@@ -368,6 +369,7 @@ class binance(Exchange):
                         'historicalTrades',
                         'aggTrades',
                         'klines',
+                        'continuousKlines',
                         'fundingRate',
                         'premiumIndex',
                         'ticker/24hr',
@@ -583,6 +585,9 @@ class binance(Exchange):
             },
         })
 
+    def currency_to_precision(self, currency, fee):
+        return self.number_to_string(fee)
+
     def nonce(self):
         return self.milliseconds() - self.options['timeDifference']
 
@@ -601,6 +606,135 @@ class binance(Exchange):
         after = self.milliseconds()
         self.options['timeDifference'] = after - serverTime
         return self.options['timeDifference']
+
+    def fetch_currencies(self, params={}):
+        # self endpoint requires authentication
+        # while fetchCurrencies is a public API method by design
+        # therefore we check the keys here
+        # and fallback to generating the currencies from the markets
+        if not self.check_required_credentials(False):
+            return None
+        # sandbox/testnet does not support sapi endpoints
+        apiBackup = self.safe_string(self.urls, 'apiBackup')
+        if apiBackup is not None:
+            return None
+        response = self.sapiGetCapitalConfigGetall(params)
+        result = {}
+        for i in range(0, len(response)):
+            #
+            #     {
+            #         coin: 'LINK',
+            #         depositAllEnable: True,
+            #         withdrawAllEnable: True,
+            #         name: 'ChainLink',
+            #         free: '0.06168',
+            #         locked: '0',
+            #         freeze: '0',
+            #         withdrawing: '0',
+            #         ipoing: '0',
+            #         ipoable: '0',
+            #         storage: '0',
+            #         isLegalMoney: False,
+            #         trading: True,
+            #         networkList: [
+            #             {
+            #                 network: 'BNB',
+            #                 coin: 'LINK',
+            #                 withdrawIntegerMultiple: '0',
+            #                 isDefault: False,
+            #                 depositEnable: True,
+            #                 withdrawEnable: True,
+            #                 depositDesc: '',
+            #                 withdrawDesc: '',
+            #                 specialTips: 'Both a MEMO and an Address are required to successfully deposit your LINK BEP2 tokens to Binance.',
+            #                 name: 'BEP2',
+            #                 resetAddressStatus: False,
+            #                 addressRegex: '^(bnb1)[0-9a-z]{38}$',
+            #                 memoRegex: '^[0-9A-Za-z\\-_]{1,120}$',
+            #                 withdrawFee: '0.002',
+            #                 withdrawMin: '0.01',
+            #                 withdrawMax: '9999999',
+            #                 minConfirm: 1,
+            #                 unLockConfirm: 0
+            #             },
+            #             {
+            #                 network: 'BSC',
+            #                 coin: 'LINK',
+            #                 withdrawIntegerMultiple: '0.00000001',
+            #                 isDefault: False,
+            #                 depositEnable: True,
+            #                 withdrawEnable: True,
+            #                 depositDesc: '',
+            #                 withdrawDesc: '',
+            #                 specialTips: '',
+            #                 name: 'BEP20(BSC)',
+            #                 resetAddressStatus: False,
+            #                 addressRegex: '^(0x)[0-9A-Fa-f]{40}$',
+            #                 memoRegex: '',
+            #                 withdrawFee: '0.005',
+            #                 withdrawMin: '0.01',
+            #                 withdrawMax: '9999999',
+            #                 minConfirm: 15,
+            #                 unLockConfirm: 0
+            #             },
+            #             {
+            #                 network: 'ETH',
+            #                 coin: 'LINK',
+            #                 withdrawIntegerMultiple: '0.00000001',
+            #                 isDefault: True,
+            #                 depositEnable: True,
+            #                 withdrawEnable: True,
+            #                 depositDesc: '',
+            #                 withdrawDesc: '',
+            #                 name: 'ERC20',
+            #                 resetAddressStatus: False,
+            #                 addressRegex: '^(0x)[0-9A-Fa-f]{40}$',
+            #                 memoRegex: '',
+            #                 withdrawFee: '0.34',
+            #                 withdrawMin: '0.68',
+            #                 withdrawMax: '0',
+            #                 minConfirm: 12,
+            #                 unLockConfirm: 0
+            #             }
+            #         ]
+            #     }
+            #
+            entry = response[i]
+            id = self.safe_string(entry, 'coin')
+            name = self.safe_string(entry, 'name')
+            code = self.safe_currency_code(id)
+            precision = None
+            isWithdrawEnabled = True
+            isDepositEnabled = True
+            networkList = self.safe_value(entry, 'networkList', [])
+            fees = {}
+            fee = None
+            for j in range(0, len(networkList)):
+                networkItem = networkList[j]
+                name = self.safe_string(networkItem, 'name')
+                withdrawFee = self.safe_float(networkItem, 'withdrawFee')
+                depositEnable = self.safe_value(networkItem, 'depositEnable')
+                withdrawEnable = self.safe_value(networkItem, 'withdrawEnable')
+                isDepositEnabled = isDepositEnabled or depositEnable
+                isWithdrawEnabled = isWithdrawEnabled or withdrawEnable
+                fees[name] = withdrawFee
+                isDefault = self.safe_value(networkItem, 'isDefault')
+                if isDefault or fee is None:
+                    fee = withdrawFee
+            trading = self.safe_value(entry, 'trading')
+            active = (isWithdrawEnabled and isDepositEnabled and trading)
+            result[code] = {
+                'id': id,
+                'name': name,
+                'code': code,
+                'precision': precision,
+                'info': entry,
+                'active': active,
+                'fee': fee,
+                'fees': fees,
+                'limits': self.limits,
+            }
+        return result
 
     def fetch_markets(self, params={}):
         defaultType = self.safe_string_2(self.options, 'fetchMarkets', 'defaultType', 'spot')
@@ -1325,6 +1459,23 @@ class binance(Exchange):
         #       "symbol": "BTCUSDT",
         #       "time": 1569514978020
         #     }
+        #     {
+        #       "symbol": "BTCUSDT",
+        #       "id": 477128891,
+        #       "orderId": 13809777875,
+        #       "side": "SELL",
+        #       "price": "38479.55",
+        #       "qty": "0.001",
+        #       "realizedPnl": "-0.00009534",
+        #       "marginAsset": "USDT",
+        #       "quoteQty": "38.47955",
+        #       "commission": "-0.00076959",
+        #       "commissionAsset": "USDT",
+        #       "time": 1612733566708,
+        #       "positionSide": "BOTH",
+        #       "maker": True,
+        #       "buyer": False
+        #     }
         #
         timestamp = self.safe_integer_2(trade, 'T', 'time')
         price = self.safe_float_2(trade, 'p', 'price')
@@ -1350,6 +1501,8 @@ class binance(Exchange):
         takerOrMaker = None
         if 'isMaker' in trade:
             takerOrMaker = 'maker' if trade['isMaker'] else 'taker'
+        if 'maker' in trade:
+            takerOrMaker = 'maker' if trade['maker'] else 'taker'
         marketId = self.safe_string(trade, 'symbol')
         symbol = self.safe_symbol(marketId, market)
         cost = None
