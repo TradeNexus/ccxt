@@ -486,6 +486,7 @@ module.exports = class binance extends Exchange {
             },
             // exchange-specific options
             'options': {
+                'fetchCurrencies': false, // this is a private call and it requires API keys
                 // 'fetchTradesMethod': 'publicGetAggTrades', // publicGetTrades, publicGetHistoricalTrades
                 'defaultTimeInForce': 'GTC', // 'GTC' = Good To Cancel (default), 'IOC' = Immediate Or Cancel
                 'defaultType': 'spot', // 'spot', 'future', 'margin', 'delivery'
@@ -563,6 +564,7 @@ module.exports = class binance extends Exchange {
                 '-3010': ExchangeError, // {"code":-3010,"msg":"Repay not allowed. Repay amount exceeds borrow amount."}
                 '-3022': AccountSuspended, // You account's trading is banned.
                 '-4028': BadRequest, // {"code":-4028,"msg":"Leverage 100 is not valid"}
+                '-5013': InsufficientFunds, // Asset transfer failed: insufficient balance"
             },
         });
     }
@@ -595,6 +597,10 @@ module.exports = class binance extends Exchange {
     }
 
     async fetchCurrencies (params = {}) {
+        const fetchCurrenciesEnabled = this.safeValue (this.options, 'fetchCurrencies');
+        if (!fetchCurrenciesEnabled) {
+            return undefined;
+        }
         // this endpoint requires authentication
         // while fetchCurrencies is a public API method by design
         // therefore we check the keys here

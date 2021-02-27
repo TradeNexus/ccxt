@@ -22,7 +22,7 @@
 
 # ----------------------------------------------------------------------------
 
-__version__ = '1.42.18.1'
+__version__ = '1.42.42.1'
 
 # ----------------------------------------------------------------------------
 
@@ -131,6 +131,7 @@ from ccxt.delta import delta                                # noqa: F401
 from ccxt.deribit import deribit                            # noqa: F401
 from ccxt.digifinex import digifinex                        # noqa: F401
 from ccxt.dsx import dsx                                    # noqa: F401
+from ccxt.equos import equos                                # noqa: F401
 from ccxt.eterbase import eterbase                          # noqa: F401
 from ccxt.exmo import exmo                                  # noqa: F401
 from ccxt.exx import exx                                    # noqa: F401
@@ -163,6 +164,7 @@ from ccxt.luno import luno                                  # noqa: F401
 from ccxt.lykke import lykke                                # noqa: F401
 from ccxt.mercado import mercado                            # noqa: F401
 from ccxt.mixcoins import mixcoins                          # noqa: F401
+from ccxt.ndax import ndax                                  # noqa: F401
 from ccxt.novadax import novadax                            # noqa: F401
 from ccxt.oceanex import oceanex                            # noqa: F401
 from ccxt.okcoin import okcoin                              # noqa: F401
@@ -257,6 +259,7 @@ exchanges = [
     'deribit',
     'digifinex',
     'dsx',
+    'equos',
     'eterbase',
     'exmo',
     'exx',
@@ -289,6 +292,7 @@ exchanges = [
     'lykke',
     'mercado',
     'mixcoins',
+    'ndax',
     'novadax',
     'oceanex',
     'okcoin',

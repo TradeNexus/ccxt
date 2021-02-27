@@ -36,7 +36,7 @@ use Elliptic\EC;
 use Elliptic\EdDSA;
 use BN\BN;
 
-$version = '1.42.18.1';
+$version = '1.42.42.1';
 
 // rounding mode
 const TRUNCATE = 0;
@@ -55,7 +55,7 @@ const PAD_WITH_ZERO = 1;
 
 class Exchange {
 
-    const VERSION = '1.42.18.1';
+    const VERSION = '1.42.42.1';
 
     private static $base58_alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
     private static $base58_encoder = null;
@@ -125,6 +125,7 @@ class Exchange {
         'deribit',
         'digifinex',
         'dsx',
+        'equos',
         'eterbase',
         'exmo',
         'exx',
@@ -157,6 +158,7 @@ class Exchange {
         'lykke',
         'mercado',
         'mixcoins',
+        'ndax',
         'novadax',
         'oceanex',
         'okcoin',
@@ -1795,10 +1797,10 @@ class Exchange {
         }
         if (isset($limit)) {
             if (is_array($result)) {
-                $result = ($tail && !$since_is_set) ? array_slice($result, -$limit) : array_slice($result, 0, $limit);
+                $result = $tail ? array_slice($result, -$limit) : array_slice($result, 0, $limit);
             } else {
                 $length = count($result);
-                if ($tail && !$since_is_set) {
+                if ($tail) {
                     $start = max($length - $limit, 0);
                 } else {
                     $start = 0;
@@ -1984,7 +1986,7 @@ class Exchange {
             }
         }
         if (isset($limit)) {
-            return ($tail && !$sinceIsSet) ? array_slice($result, -$limit) : array_slice($result, 0, $limit);
+            return $tail ? array_slice($result, -$limit) : array_slice($result, 0, $limit);
         }
         return $result;
     }
@@ -2482,6 +2484,14 @@ class Exchange {
         }
 
         throw new BadSymbol($this->id . ' does not have market symbol ' . $symbol);
+    }
+
+    public function currency_ids($codes) {
+        return array_map(array($this, 'currency_id'), $codes);
+    }
+
+    public function currencyIds($codes) {
+        return $this->currency_ids($codes);
     }
 
     public function market_ids($symbols) {

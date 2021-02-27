@@ -24,30 +24,31 @@ class kucoin extends Exchange {
             'comment' => 'Platform 2.0',
             'has' => array(
                 'CORS' => false,
-                'fetchStatus' => true,
-                'fetchTime' => true,
-                'fetchMarkets' => true,
+                'cancelAllOrders' => true,
+                'cancelOrder' => true,
+                'createDepositAddress' => true,
+                'createOrder' => true,
+                'fetchAccounts' => true,
+                'fetchBalance' => true,
+                'fetchClosedOrders' => true,
                 'fetchCurrencies' => true,
+                'fetchDepositAddress' => true,
+                'fetchDeposits' => true,
+                'fetchFundingFee' => true,
+                'fetchLedger' => true,
+                'fetchMarkets' => true,
+                'fetchMyTrades' => true,
+                'fetchOHLCV' => true,
+                'fetchOpenOrders' => true,
+                'fetchOrder' => true,
+                'fetchOrderBook' => true,
+                'fetchStatus' => true,
                 'fetchTicker' => true,
                 'fetchTickers' => true,
-                'fetchOrderBook' => true,
-                'fetchOrder' => true,
-                'fetchClosedOrders' => true,
-                'fetchOpenOrders' => true,
-                'fetchDepositAddress' => true,
-                'createDepositAddress' => true,
-                'withdraw' => true,
-                'fetchDeposits' => true,
-                'fetchWithdrawals' => true,
-                'fetchBalance' => true,
+                'fetchTime' => true,
                 'fetchTrades' => true,
-                'fetchMyTrades' => true,
-                'createOrder' => true,
-                'cancelOrder' => true,
-                'fetchAccounts' => true,
-                'fetchFundingFee' => true,
-                'fetchOHLCV' => true,
-                'fetchLedger' => true,
+                'fetchWithdrawals' => true,
+                'withdraw' => true,
             ),
             'urls' => array(
                 'logo' => 'https://user-images.githubusercontent.com/51840849/87295558-132aaf80-c50e-11ea-9801-a2fb0c57c799.jpg',
@@ -78,6 +79,7 @@ class kucoin extends Exchange {
                         'symbols',
                         'markets',
                         'market/allTickers',
+                        'market/orderbook/level{level}_{limit}',
                         'market/orderbook/level{level}',
                         'market/orderbook/level2',
                         'market/orderbook/level2_20',
@@ -114,6 +116,7 @@ class kucoin extends Exchange {
                         'withdrawals',
                         'withdrawals/quotas',
                         'orders',
+                        'order/client-order/{clientOid}',
                         'orders/{orderId}',
                         'limit/orders',
                         'fills',
@@ -129,6 +132,9 @@ class kucoin extends Exchange {
                         'margin/lend/assets',
                         'margin/market',
                         'margin/trade/last',
+                        'stop-order/{orderId}',
+                        'stop-order',
+                        'stop-order/queryOrderByClientOid',
                     ),
                     'post' => array(
                         'accounts',
@@ -139,17 +145,23 @@ class kucoin extends Exchange {
                         'orders',
                         'orders/multi',
                         'margin/borrow',
+                        'margin/order',
                         'margin/repay/all',
                         'margin/repay/single',
                         'margin/lend',
                         'margin/toggle-auto-lend',
                         'bullet-private',
+                        'stop-order',
                     ),
                     'delete' => array(
                         'withdrawals/{withdrawalId}',
                         'orders',
+                        'orders/client-order/{clientOid}',
                         'orders/{orderId}',
                         'margin/lend/{orderId}',
+                        'stop-order/cancelOrderByClientOid',
+                        'stop-order/{orderId}',
+                        'stop-order/cancel',
                     ),
                 ),
             ),
@@ -240,10 +252,12 @@ class kucoin extends Exchange {
                     'public' => array(
                         'GET' => array(
                             'status' => 'v1',
-                            'market/orderbook/level{level}' => 'v2',
                             'market/orderbook/level2' => 'v2',
-                            'market/orderbook/level2_20' => 'v2',
-                            'market/orderbook/level2_100' => 'v2',
+                            'market/orderbook/level3' => 'v2',
+                            'market/orderbook/level2_20' => 'v1',
+                            'market/orderbook/level2_100' => 'v1',
+                            'market/orderbook/level{level}' => 'v2',
+                            'market/orderbook/level{level}_{limit}' => 'v1',
                         ),
                     ),
                     'private' => array(
@@ -725,20 +739,22 @@ class kucoin extends Exchange {
     }
 
     public function fetch_order_book($symbol, $limit = null, $params = array ()) {
-        $level = $this->safe_integer($params, 'level', 2);
-        $levelLimit = (string) $level;
-        if ($levelLimit === '2') {
-            if ($limit !== null) {
-                if (($limit !== 20) && ($limit !== 100)) {
-                    throw new ExchangeError($this->id . ' fetchOrderBook $limit argument must be null, 20 or 100');
-                }
-                $levelLimit .= '_' . (string) $limit;
-            }
-        }
         $this->load_markets();
         $marketId = $this->market_id($symbol);
-        $request = array( 'symbol' => $marketId, 'level' => $levelLimit );
-        $response = $this->publicGetMarketOrderbookLevelLevel (array_merge($request, $params));
+        $level = $this->safe_integer($params, 'level', 2);
+        $request = array( 'symbol' => $marketId, 'level' => $level );
+        $method = 'publicGetMarketOrderbookLevelLevel';
+        if ($level === 2) {
+            if ($limit !== null) {
+                if (($limit === 20) || ($limit === 100)) {
+                    $request['limit'] = $limit;
+                    $method = 'publicGetMarketOrderbookLevelLevelLimit';
+                } else {
+                    throw new ExchangeError($this->id . ' fetchOrderBook $limit argument must be null, 20 or 100');
+                }
+            }
+        }
+        $response = $this->$method (array_merge($request, $params));
         //
         // 'market/orderbook/level2'
         // 'market/orderbook/level2_20'
@@ -800,7 +816,29 @@ class kucoin extends Exchange {
             'clientOid' => $clientOrderId,
             'side' => $side,
             'symbol' => $marketId,
-            'type' => $type,
+            'type' => $type, // limit or market
+            // 'remark' => '', // optional remark for the $order, length cannot exceed 100 utf8 characters
+            // 'stp' => '', // self trade prevention, CN, CO, CB or DC
+            // To improve the system performance and to accelerate $order placing and processing, KuCoin has added a new interface for margin orders
+            // The current one will no longer accept margin orders by May 1st, 2021 (UTC)
+            // At the time, KuCoin will notify users via the announcement, please pay attention to it
+            // 'tradeType' => 'TRADE', // TRADE, MARGIN_TRADE // not used with margin orders
+            // limit orders ---------------------------------------------------
+            // 'timeInForce' => 'GTC', // GTC, GTT, IOC, or FOK (default is GTC), limit orders only
+            // 'cancelAfter' => long, // cancel after n seconds, requires timeInForce to be GTT
+            // 'postOnly' => false, // Post only flag, invalid when timeInForce is IOC or FOK
+            // 'hidden' => false, // Order will not be displayed in the $order book
+            // 'iceberg' => false, // Only a portion of the $order is displayed in the $order book
+            // 'visibleSize' => $this->amount_to_precision($symbol, visibleSize), // The maximum visible size of an iceberg $order
+            // market orders --------------------------------------------------
+            // 'size' => $this->amount_to_precision($symbol, $amount), // Amount in base currency
+            // 'funds' => $this->cost_to_precision($symbol, cost), // Amount of quote currency to use
+            // stop orders ----------------------------------------------------
+            // 'stop' => 'loss', // loss or entry, the default is loss, requires stopPrice
+            // 'stopPrice' => $this->price_to_precision($symbol, $amount), // need to be defined if stop is specified
+            // margin orders --------------------------------------------------
+            // 'marginMode' => 'cross', // cross (cross mode) and isolated (isolated mode), set to cross by default, the isolated mode will be released soon, stay tuned
+            // 'autoBorrow' => false, // The system will first borrow you funds at the optimal interest rate and then place an $order for you
         );
         if ($type !== 'market') {
             $request['price'] = $this->price_to_precision($symbol, $price);
@@ -852,9 +890,31 @@ class kucoin extends Exchange {
     }
 
     public function cancel_order($id, $symbol = null, $params = array ()) {
-        $request = array( 'orderId' => $id );
-        $response = $this->privateDeleteOrdersOrderId (array_merge($request, $params));
-        return $response;
+        $this->load_markets();
+        $request = array();
+        $clientOrderId = $this->safe_string_2($params, 'clientOid', 'clientOrderId');
+        $method = 'privateDeleteOrdersOrderId';
+        if ($clientOrderId !== null) {
+            $request['clientOid'] = $clientOrderId;
+            $method = 'privateDeleteOrdersClientOrderClientOid';
+        } else {
+            $request['orderId'] = $id;
+        }
+        $params = $this->omit($params, array( 'clientOid', 'clientOrderId' ));
+        return $this->$method (array_merge($request, $params));
+    }
+
+    public function cancel_all_orders($symbol = null, $params = array ()) {
+        $this->load_markets();
+        $request = array(
+            // 'symbol' => $market['id'],
+            // 'tradeType' => 'TRADE', // default is to cancel the spot trading order
+        );
+        $market = $this->market($symbol);
+        if ($symbol !== null) {
+            $request['symbol'] = $market['id'];
+        }
+        return $this->privateDeleteOrders (array_merge($request, $params));
     }
 
     public function fetch_orders_by_status($status, $symbol = null, $since = null, $limit = null, $params = array ()) {
@@ -932,20 +992,27 @@ class kucoin extends Exchange {
 
     public function fetch_order($id, $symbol = null, $params = array ()) {
         $this->load_markets();
-        // a special case for null ids
-        // otherwise a wrong endpoint for all orders will be triggered
-        // https://github.com/ccxt/ccxt/issues/7234
-        if ($id === null) {
-            throw new InvalidOrder($this->id . ' fetchOrder() requires an order id');
+        $request = array();
+        $clientOrderId = $this->safe_string_2($params, 'clientOid', 'clientOrderId');
+        $method = 'privateGetOrdersOrderId';
+        if ($clientOrderId !== null) {
+            $request['clientOid'] = $clientOrderId;
+            $method = 'privateGetOrdersClientOrderClientOid';
+        } else {
+            // a special case for null ids
+            // otherwise a wrong endpoint for all orders will be triggered
+            // https://github.com/ccxt/ccxt/issues/7234
+            if ($id === null) {
+                throw new InvalidOrder($this->id . ' fetchOrder() requires an order id');
+            }
+            $request['orderId'] = $id;
         }
-        $request = array(
-            'orderId' => $id,
-        );
+        $params = $this->omit($params, array( 'clientOid', 'clientOrderId' ));
+        $response = $this->$method (array_merge($request, $params));
         $market = null;
         if ($symbol !== null) {
             $market = $this->market($symbol);
         }
-        $response = $this->privateGetOrdersOrderId (array_merge($request, $params));
         $responseData = $this->safe_value($response, 'data');
         return $this->parse_order($responseData, $market);
     }
@@ -1757,7 +1824,7 @@ class kucoin extends Exchange {
         //                                †                 ↑
         //
         $versions = $this->safe_value($this->options, 'versions', array());
-        $apiVersions = $this->safe_value($versions, $api);
+        $apiVersions = $this->safe_value($versions, $api, array());
         $methodVersions = $this->safe_value($apiVersions, $method, array());
         $defaultVersion = $this->safe_string($methodVersions, $path, $this->options['version']);
         $version = $this->safe_string($params, 'version', $defaultVersion);

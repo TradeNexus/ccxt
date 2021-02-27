@@ -36,30 +36,31 @@ class kucoin(Exchange):
             'comment': 'Platform 2.0',
             'has': {
                 'CORS': False,
-                'fetchStatus': True,
-                'fetchTime': True,
-                'fetchMarkets': True,
+                'cancelAllOrders': True,
+                'cancelOrder': True,
+                'createDepositAddress': True,
+                'createOrder': True,
+                'fetchAccounts': True,
+                'fetchBalance': True,
+                'fetchClosedOrders': True,
                 'fetchCurrencies': True,
+                'fetchDepositAddress': True,
+                'fetchDeposits': True,
+                'fetchFundingFee': True,
+                'fetchLedger': True,
+                'fetchMarkets': True,
+                'fetchMyTrades': True,
+                'fetchOHLCV': True,
+                'fetchOpenOrders': True,
+                'fetchOrder': True,
+                'fetchOrderBook': True,
+                'fetchStatus': True,
                 'fetchTicker': True,
                 'fetchTickers': True,
-                'fetchOrderBook': True,
-                'fetchOrder': True,
-                'fetchClosedOrders': True,
-                'fetchOpenOrders': True,
-                'fetchDepositAddress': True,
-                'createDepositAddress': True,
-                'withdraw': True,
-                'fetchDeposits': True,
-                'fetchWithdrawals': True,
-                'fetchBalance': True,
+                'fetchTime': True,
                 'fetchTrades': True,
-                'fetchMyTrades': True,
-                'createOrder': True,
-                'cancelOrder': True,
-                'fetchAccounts': True,
-                'fetchFundingFee': True,
-                'fetchOHLCV': True,
-                'fetchLedger': True,
+                'fetchWithdrawals': True,
+                'withdraw': True,
             },
             'urls': {
                 'logo': 'https://user-images.githubusercontent.com/51840849/87295558-132aaf80-c50e-11ea-9801-a2fb0c57c799.jpg',
@@ -90,6 +91,7 @@ class kucoin(Exchange):
                         'symbols',
                         'markets',
                         'market/allTickers',
+                        'market/orderbook/level{level}_{limit}',
                         'market/orderbook/level{level}',
                         'market/orderbook/level2',
                         'market/orderbook/level2_20',
@@ -126,6 +128,7 @@ class kucoin(Exchange):
                         'withdrawals',
                         'withdrawals/quotas',
                         'orders',
+                        'order/client-order/{clientOid}',
                         'orders/{orderId}',
                         'limit/orders',
                         'fills',
@@ -141,6 +144,9 @@ class kucoin(Exchange):
                         'margin/lend/assets',
                         'margin/market',
                         'margin/trade/last',
+                        'stop-order/{orderId}',
+                        'stop-order',
+                        'stop-order/queryOrderByClientOid',
                     ],
                     'post': [
                         'accounts',
@@ -151,17 +157,23 @@ class kucoin(Exchange):
                         'orders',
                         'orders/multi',
                         'margin/borrow',
+                        'margin/order',
                         'margin/repay/all',
                         'margin/repay/single',
                         'margin/lend',
                         'margin/toggle-auto-lend',
                         'bullet-private',
+                        'stop-order',
                     ],
                     'delete': [
                         'withdrawals/{withdrawalId}',
                         'orders',
+                        'orders/client-order/{clientOid}',
                         'orders/{orderId}',
                         'margin/lend/{orderId}',
+                        'stop-order/cancelOrderByClientOid',
+                        'stop-order/{orderId}',
+                        'stop-order/cancel',
                     ],
                 },
             },
@@ -252,10 +264,12 @@ class kucoin(Exchange):
                     'public': {
                         'GET': {
                             'status': 'v1',
-                            'market/orderbook/level{level}': 'v2',
                             'market/orderbook/level2': 'v2',
-                            'market/orderbook/level2_20': 'v2',
-                            'market/orderbook/level2_100': 'v2',
+                            'market/orderbook/level3': 'v2',
+                            'market/orderbook/level2_20': 'v1',
+                            'market/orderbook/level2_100': 'v1',
+                            'market/orderbook/level{level}': 'v2',
+                            'market/orderbook/level{level}_{limit}': 'v1',
                         },
                     },
                     'private': {
@@ -708,17 +722,19 @@ class kucoin(Exchange):
         return await self.fetch_order_book(symbol, limit, {'level': 3})
 
     async def fetch_order_book(self, symbol, limit=None, params={}):
-        level = self.safe_integer(params, 'level', 2)
-        levelLimit = str(level)
-        if levelLimit == '2':
-            if limit is not None:
-                if (limit != 20) and (limit != 100):
-                    raise ExchangeError(self.id + ' fetchOrderBook limit argument must be None, 20 or 100')
-                levelLimit += '_' + str(limit)
         await self.load_markets()
         marketId = self.market_id(symbol)
-        request = {'symbol': marketId, 'level': levelLimit}
-        response = await self.publicGetMarketOrderbookLevelLevel(self.extend(request, params))
+        level = self.safe_integer(params, 'level', 2)
+        request = {'symbol': marketId, 'level': level}
+        method = 'publicGetMarketOrderbookLevelLevel'
+        if level == 2:
+            if limit is not None:
+                if (limit == 20) or (limit == 100):
+                    request['limit'] = limit
+                    method = 'publicGetMarketOrderbookLevelLevelLimit'
+                else:
+                    raise ExchangeError(self.id + ' fetchOrderBook limit argument must be None, 20 or 100')
+        response = await getattr(self, method)(self.extend(request, params))
         #
         # 'market/orderbook/level2'
         # 'market/orderbook/level2_20'
@@ -779,7 +795,29 @@ class kucoin(Exchange):
             'clientOid': clientOrderId,
             'side': side,
             'symbol': marketId,
-            'type': type,
+            'type': type,  # limit or market
+            # 'remark': '',  # optional remark for the order, length cannot exceed 100 utf8 characters
+            # 'stp': '',  # self trade prevention, CN, CO, CB or DC
+            # To improve the system performance and to accelerate order placing and processing, KuCoin has added a new interface for margin orders
+            # The current one will no longer accept margin orders by May 1st, 2021(UTC)
+            # At the time, KuCoin will notify users via the announcement, please pay attention to it
+            # 'tradeType': 'TRADE',  # TRADE, MARGIN_TRADE  # not used with margin orders
+            # limit orders ---------------------------------------------------
+            # 'timeInForce': 'GTC',  # GTC, GTT, IOC, or FOK(default is GTC), limit orders only
+            # 'cancelAfter': long,  # cancel after n seconds, requires timeInForce to be GTT
+            # 'postOnly': False,  # Post only flag, invalid when timeInForce is IOC or FOK
+            # 'hidden': False,  # Order will not be displayed in the order book
+            # 'iceberg': False,  # Only a portion of the order is displayed in the order book
+            # 'visibleSize': self.amount_to_precision(symbol, visibleSize),  # The maximum visible size of an iceberg order
+            # market orders --------------------------------------------------
+            # 'size': self.amount_to_precision(symbol, amount),  # Amount in base currency
+            # 'funds': self.cost_to_precision(symbol, cost),  # Amount of quote currency to use
+            # stop orders ----------------------------------------------------
+            # 'stop': 'loss',  # loss or entry, the default is loss, requires stopPrice
+            # 'stopPrice': self.price_to_precision(symbol, amount),  # need to be defined if stop is specified
+            # margin orders --------------------------------------------------
+            # 'marginMode': 'cross',  # cross(cross mode) and isolated(isolated mode), set to cross by default, the isolated mode will be released soon, stay tuned
+            # 'autoBorrow': False,  # The system will first borrow you funds at the optimal interest rate and then place an order for you
         }
         if type != 'market':
             request['price'] = self.price_to_precision(symbol, price)
@@ -827,9 +865,28 @@ class kucoin(Exchange):
         return order
 
     async def cancel_order(self, id, symbol=None, params={}):
-        request = {'orderId': id}
-        response = await self.privateDeleteOrdersOrderId(self.extend(request, params))
-        return response
+        await self.load_markets()
+        request = {}
+        clientOrderId = self.safe_string_2(params, 'clientOid', 'clientOrderId')
+        method = 'privateDeleteOrdersOrderId'
+        if clientOrderId is not None:
+            request['clientOid'] = clientOrderId
+            method = 'privateDeleteOrdersClientOrderClientOid'
+        else:
+            request['orderId'] = id
+        params = self.omit(params, ['clientOid', 'clientOrderId'])
+        return await getattr(self, method)(self.extend(request, params))
+
+    async def cancel_all_orders(self, symbol=None, params={}):
+        await self.load_markets()
+        request = {
+            # 'symbol': market['id'],
+            # 'tradeType': 'TRADE',  # default is to cancel the spot trading order
+        }
+        market = self.market(symbol)
+        if symbol is not None:
+            request['symbol'] = market['id']
+        return await self.privateDeleteOrders(self.extend(request, params))
 
     async def fetch_orders_by_status(self, status, symbol=None, since=None, limit=None, params={}):
         await self.load_markets()
@@ -900,18 +957,24 @@ class kucoin(Exchange):
 
     async def fetch_order(self, id, symbol=None, params={}):
         await self.load_markets()
-        # a special case for None ids
-        # otherwise a wrong endpoint for all orders will be triggered
-        # https://github.com/ccxt/ccxt/issues/7234
-        if id is None:
-            raise InvalidOrder(self.id + ' fetchOrder() requires an order id')
-        request = {
-            'orderId': id,
-        }
+        request = {}
+        clientOrderId = self.safe_string_2(params, 'clientOid', 'clientOrderId')
+        method = 'privateGetOrdersOrderId'
+        if clientOrderId is not None:
+            request['clientOid'] = clientOrderId
+            method = 'privateGetOrdersClientOrderClientOid'
+        else:
+            # a special case for None ids
+            # otherwise a wrong endpoint for all orders will be triggered
+            # https://github.com/ccxt/ccxt/issues/7234
+            if id is None:
+                raise InvalidOrder(self.id + ' fetchOrder() requires an order id')
+            request['orderId'] = id
+        params = self.omit(params, ['clientOid', 'clientOrderId'])
+        response = await getattr(self, method)(self.extend(request, params))
         market = None
         if symbol is not None:
             market = self.market(symbol)
-        response = await self.privateGetOrdersOrderId(self.extend(request, params))
         responseData = self.safe_value(response, 'data')
         return self.parse_order(responseData, market)
 
@@ -1657,7 +1720,7 @@ class kucoin(Exchange):
         #                                †                 ↑
         #
         versions = self.safe_value(self.options, 'versions', {})
-        apiVersions = self.safe_value(versions, api)
+        apiVersions = self.safe_value(versions, api, {})
         methodVersions = self.safe_value(apiVersions, method, {})
         defaultVersion = self.safe_string(methodVersions, path, self.options['version'])
         version = self.safe_string(params, 'version', defaultVersion)

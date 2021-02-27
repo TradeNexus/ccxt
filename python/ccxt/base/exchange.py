@@ -4,7 +4,7 @@
 
 # -----------------------------------------------------------------------------
 
-__version__ = '1.42.18.1'
+__version__ = '1.42.42.1'
 
 # -----------------------------------------------------------------------------
 
@@ -1774,7 +1774,7 @@ class Exchange(object):
         if since is not None:
             array = [entry for entry in array if entry[key] >= since]
         if limit is not None:
-            array = array[-limit:] if tail and (since is None) else array[:limit]
+            array = array[-limit:] if tail else array[:limit]
         return array
 
     def filter_by_symbol_since_limit(self, array, symbol=None, since=None, limit=None, tail=False):
@@ -1788,7 +1788,7 @@ class Exchange(object):
         if since is not None:
             array = [entry for entry in array if entry[key] >= since]
         if limit is not None:
-            array = array[-limit:] if tail and (since is None) else array[:limit]
+            array = array[-limit:] if tail else array[:limit]
         return array
 
     def filter_by_symbol(self, array, symbol=None):
@@ -1826,6 +1826,9 @@ class Exchange(object):
         if isinstance(symbol, basestring) and (symbol in self.markets):
             return self.markets[symbol]
         raise BadSymbol('{} does not have market symbol {}'.format(self.id, symbol))
+
+    def currency_ids(self, codes):
+        return [self.currency_id(code) for code in codes]
 
     def market_ids(self, symbols):
         return [self.market_id(symbol) for symbol in symbols]

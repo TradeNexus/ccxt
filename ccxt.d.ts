@@ -486,6 +486,7 @@ declare module 'ccxt' {
     export class deribit extends Exchange {}
     export class digifinex extends Exchange {}
     export class dsx extends Exchange {}
+    export class equos extends Exchange {}
     export class eterbase extends Exchange {}
     export class exmo extends Exchange {}
     export class exx extends Exchange {}
@@ -518,6 +519,7 @@ declare module 'ccxt' {
     export class lykke extends Exchange {}
     export class mercado extends Exchange {}
     export class mixcoins extends Exchange {}
+    export class ndax extends Exchange {}
     export class novadax extends Exchange {}
     export class oceanex extends Exchange {}
     export class okcoin extends okex {}
