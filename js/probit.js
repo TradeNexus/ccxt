@@ -121,6 +121,7 @@ module.exports = class probit extends Exchange {
                     'RATE_LIMIT_EXCEEDED': RateLimitExceeded, // You are sending requests too frequently. Please try it later.
                     'MARKET_UNAVAILABLE': ExchangeNotAvailable, // Market is closed today
                     'INVALID_MARKET': BadSymbol, // Requested market is not exist
+                    'MARKET_CLOSED': BadSymbol, // {"errorCode":"MARKET_CLOSED"}
                     'INVALID_CURRENCY': BadRequest, // Requested currency is not exist on ProBit system
                     'TOO_MANY_OPEN_ORDERS': DDoSProtection, // Too many open orders
                     'DUPLICATE_ADDRESS': InvalidAddress, // Address already exists in withdrawal address list
@@ -300,7 +301,18 @@ module.exports = class probit extends Exchange {
             const withdrawalSuspended = this.safeValue (platform, 'withdrawal_suspended');
             const active = !(depositSuspended && withdrawalSuspended);
             const withdrawalFees = this.safeValue (platform, 'withdrawal_fee', {});
-            const withdrawalFeesByPriority = this.sortBy (withdrawalFees, 'priority');
+            const fees = [];
+            // sometimes the withdrawal fee is an empty object
+            // [ { 'amount': '0.015', 'priority': 1, 'currency_id': 'ETH' }, {} ]
+            for (let j = 0; j < withdrawalFees.length; j++) {
+                const withdrawalFee = withdrawalFees[j];
+                const amount = this.safeFloat (withdrawalFee, 'amount');
+                const priority = this.safeInteger (withdrawalFee, 'priority');
+                if ((amount !== undefined) && (priority !== undefined)) {
+                    fees.push (withdrawalFee);
+                }
+            }
+            const withdrawalFeesByPriority = this.sortBy (fees, 'priority');
             const withdrawalFee = this.safeValue (withdrawalFeesByPriority, 0, {});
             const fee = this.safeFloat (withdrawalFee, 'amount');
             result[code] = {

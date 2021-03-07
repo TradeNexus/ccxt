@@ -15,6 +15,7 @@ from ccxt.base.errors import InsufficientFunds
 from ccxt.base.errors import InvalidAddress
 from ccxt.base.errors import InvalidOrder
 from ccxt.base.errors import OrderNotFound
+from ccxt.base.errors import NotSupported
 from ccxt.base.errors import OnMaintenance
 from ccxt.base.errors import InvalidNonce
 
@@ -185,6 +186,7 @@ class bitfinex2(bitfinex):
                         'auth/w/position/claim',
                         'auth/r/positions/hist',
                         'auth/r/positions/audit',
+                        'auth/r/positions/snap',
                         'auth/w/deriv/collateral/set',
                         'auth/w/deriv/collateral/limits',
                         'auth/r/funding/offers',
@@ -581,6 +583,9 @@ class bitfinex2(bitfinex):
                     account['used'] = account['total'] - account['free']
                 result[code] = account
         return self.parse_balance(result)
+
+    async def fetch_order(self, id, symbol=None, params={}):
+        raise NotSupported(self.id + ' fetchOrder is not implemented yet')
 
     async def fetch_order_book(self, symbol, limit=None, params={}):
         await self.load_markets()

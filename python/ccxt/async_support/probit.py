@@ -135,6 +135,7 @@ class probit(Exchange):
                     'RATE_LIMIT_EXCEEDED': RateLimitExceeded,  # You are sending requests too frequently. Please try it later.
                     'MARKET_UNAVAILABLE': ExchangeNotAvailable,  # Market is closed today
                     'INVALID_MARKET': BadSymbol,  # Requested market is not exist
+                    'MARKET_CLOSED': BadSymbol,  # {"errorCode":"MARKET_CLOSED"}
                     'INVALID_CURRENCY': BadRequest,  # Requested currency is not exist on ProBit system
                     'TOO_MANY_OPEN_ORDERS': DDoSProtection,  # Too many open orders
                     'DUPLICATE_ADDRESS': InvalidAddress,  # Address already exists in withdrawal address list
@@ -311,7 +312,16 @@ class probit(Exchange):
             withdrawalSuspended = self.safe_value(platform, 'withdrawal_suspended')
             active = not (depositSuspended and withdrawalSuspended)
             withdrawalFees = self.safe_value(platform, 'withdrawal_fee', {})
-            withdrawalFeesByPriority = self.sort_by(withdrawalFees, 'priority')
+            fees = []
+            # sometimes the withdrawal fee is an empty object
+            # [{'amount': '0.015', 'priority': 1, 'currency_id': 'ETH'}, {}]
+            for j in range(0, len(withdrawalFees)):
+                withdrawalFee = withdrawalFees[j]
+                amount = self.safe_float(withdrawalFee, 'amount')
+                priority = self.safe_integer(withdrawalFee, 'priority')
+                if (amount is not None) and (priority is not None):
+                    fees.append(withdrawalFee)
+            withdrawalFeesByPriority = self.sort_by(fees, 'priority')
             withdrawalFee = self.safe_value(withdrawalFeesByPriority, 0, {})
             fee = self.safe_float(withdrawalFee, 'amount')
             result[code] = {
